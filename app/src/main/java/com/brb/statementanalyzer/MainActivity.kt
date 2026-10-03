@@ -29,13 +29,13 @@ import kotlin.concurrent.thread
 
 /**
  * Hosts the offline HTML app (web/index.html, bundled as assets) in a WebView.
- * The app makes no network requests: PDFs are read on the device by pdf.js and
- * statements are stored in the WebView's IndexedDB.
+ * The app makes no network requests: PDFs are read and edited on the device by
+ * pdf.js and pdf-lib, and statements are stored in the WebView's IndexedDB.
  */
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private var fileCallback: ValueCallback<Array<Uri>>? = null
-    private var pendingSave: String? = null
+    private var pendingSave: ByteArray? = null
     private var pageReady = false
     private val pendingShares = ArrayList<Uri>()
 
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
         val uri = result.data?.data
         if (result.resultCode != RESULT_OK || uri == null) return@registerForActivityResult
         try {
-            contentResolver.openOutputStream(uri)?.use { it.write(content.toByteArray()) }
+            contentResolver.openOutputStream(uri)?.use { it.write(content) }
             Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, "Could not save: ${e.message}", Toast.LENGTH_LONG).show()
@@ -171,7 +171,7 @@ class MainActivity : ComponentActivity() {
                     val name = displayName(uri)
                     val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: continue
                     val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                    runOnUiThread { web.evaluateJavascript("window.importSharedPdf(${JSONObject.quote(name)}, '$b64')", null) }
+                    runOnUiThread { web.evaluateJavascript("window.importSharedPdf(${JSONObject.quote(name)}, '$b64', ${uris.size})", null) }
                 } catch (e: Exception) {
                     runOnUiThread { Toast.makeText(this, "Could not open file: ${e.message}", Toast.LENGTH_LONG).show() }
                 }
@@ -186,13 +186,33 @@ class MainActivity : ComponentActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (web.canGoBack()) web.goBack() else super.onBackPressed()
+        if (!pageReady) {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
+            return
+        }
+        // Let the page close an open PDF first (it asks before dropping unsaved edits).
+        web.evaluateJavascript(
+            "Promise.resolve().then(function () { return window.handleBack ? window.handleBack() : false; })" +
+                ".catch(function () { return false; }).then(function (h) { AndroidBridge.backResult(!!h); })",
+            null,
+        )
     }
 
-    /** Lets the page save CSV exports and backups through Android's "Save to" picker (Drive included). */
+    /** Lets the page save PDFs, CSV exports and backups through Android's "Save to" picker (Drive included). */
     inner class Bridge {
         @JavascriptInterface
-        fun saveFile(name: String, mime: String, content: String) {
+        fun saveFile(name: String, mime: String, content: String) = save(name, mime, content.toByteArray())
+
+        @JavascriptInterface
+        fun saveBase64(name: String, mime: String, base64: String) = save(name, mime, Base64.decode(base64, Base64.DEFAULT))
+
+        @JavascriptInterface
+        fun backResult(handled: Boolean) {
+            if (!handled) runOnUiThread { if (web.canGoBack()) web.goBack() else finish() }
+        }
+
+        private fun save(name: String, mime: String, content: ByteArray) {
             runOnUiThread {
                 pendingSave = content
                 createDocument.launch(

@@ -1,4 +1,4 @@
-<title>Bank Statement Analyzer</title>
+<title>BRB PDF</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -127,9 +127,78 @@
   @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
   .help { display: grid; gap: 6px; font-size: 0.88rem; color: var(--muted); max-width: 70ch; }
   .help ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+  /* App modes */
+  .modes { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--rule); border-radius: 999px; padding: 3px; justify-self: start; }
+  .mode { border: 0; background: none; border-radius: 999px; padding: 7px 16px; font-weight: 600; cursor: pointer; color: var(--muted); min-height: 36px; }
+  .mode[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .appbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+
+  /* PDF editor */
+  #mode-editor { display: grid; gap: 12px; min-width: 0; }
+  .ed-empty { background: var(--surface); border: 1px dashed var(--rule); border-radius: var(--radius); padding: 28px 18px; display: grid; gap: 12px; justify-items: center; text-align: center; }
+  .ed-empty p { max-width: 56ch; }
+  .ed-empty .help { text-align: left; padding-left: 18px; }
+  .ed-bar { position: sticky; top: 0; z-index: 5; background: var(--paper); border-bottom: 1px solid var(--rule); padding-block: 8px; display: grid; gap: 6px; margin-inline: -16px; padding-inline: 16px; }
+  .ed-bar .ed-row:first-child { flex-wrap: nowrap; gap: 2px; }
+  .ed-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; min-width: 0; }
+  .ed-name { flex: 1 1 100px; min-width: 0; max-width: 340px; margin-right: 4px; border: 1px solid var(--rule); background: var(--surface); border-radius: 8px; padding: 7px 10px; min-height: 40px; font-weight: 600; }
+  .ed-tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .ed-tool { flex: none; border: 1px solid var(--rule); background: var(--surface); border-radius: 999px; padding: 6px 12px; min-height: 36px; cursor: pointer; font-weight: 500; font-size: 0.86rem; white-space: nowrap; }
+  .ed-tool[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .ed-icon { min-width: 40px; padding-inline: 6px; font-size: 1.15rem; }
+  .ed-icon[aria-pressed="true"] { background: var(--accent-soft); }
+  .ed-zoom { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 6; display: flex; align-items: center;
+    border: 1px solid var(--rule); border-radius: 999px; background: var(--surface); box-shadow: 0 4px 14px rgb(0 0 0 / 0.18); }
+  .ed-zoom .btn { min-width: 44px; font-size: 1.1rem; }
+  .ed-zoom .num { font-size: 0.8rem; min-width: 52px; }
+  .ed-find { flex-wrap: nowrap; gap: 2px; }
+  .ed-find input { flex: 1; min-width: 0; border: 1px solid var(--rule); background: var(--surface); border-radius: 8px; padding: 7px 10px; min-height: 40px; }
+  .ed-props select, .ed-props input[type=number] { border: 1px solid var(--rule); background: var(--surface); border-radius: 8px; padding: 6px 8px; min-height: 36px; }
+  .ed-props input[type=number] { width: 64px; }
+  .ed-props input[type=color] { width: 40px; height: 36px; border: 1px solid var(--rule); border-radius: 8px; padding: 2px; background: var(--surface); }
+  .ed-tip { margin-top: -2px; }
+  .ed-menu { position: relative; }
+  .ed-menu summary { list-style: none; }
+  .ed-menu summary::-webkit-details-marker { display: none; }
+  .ed-menu-list { position: absolute; right: 0; top: calc(100% + 4px); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 6px; display: grid; min-width: 220px; z-index: 6; box-shadow: 0 8px 24px rgb(0 0 0 / 0.15); }
+  .ed-menu-list .btn { justify-content: flex-start; }
+  .ed-pages { display: grid; gap: 18px; overflow-x: auto; padding-bottom: 8px; justify-items: center; }
+  .ed-page { display: grid; gap: 4px; width: max-content; max-width: none; }
+  .ed-page-head { display: flex; align-items: center; gap: 2px; color: var(--muted); }
+  .ed-page-head .btn { min-height: 32px; padding: 4px 8px; font-size: 0.82rem; }
+  .ed-sheet { position: relative; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25), 0 0 0 1px var(--rule); user-select: none; -webkit-user-select: none; }
+  .ed-sheet canvas { position: absolute; inset: 0; display: block; }
+  .ed-svg { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .ed-layer { position: absolute; inset: 0; pointer-events: none; }
+  .ed-text { position: absolute; white-space: pre; line-height: 1.2; pointer-events: none; }
+  .ed-hit { fill: none; stroke: #f08c00; stroke-width: 2.5; }
+  .ed-input { position: absolute; margin: 0; padding: 0; border: 0; outline: 1.5px dashed #1a73e8; outline-offset: 2px; background: rgb(255 255 255 / 0.35);
+    line-height: 1.2; resize: none; overflow: hidden; white-space: pre; pointer-events: auto; z-index: 2; }
+  [data-tool]:not([data-tool="read"]) .ed-text { pointer-events: auto; cursor: move; touch-action: none; }
+  [data-tool="edit"] .ed-text, [data-tool="text"] .ed-text { outline: 1px dotted rgb(26 115 232 / 0.6); }
+  .ed-text.sel { outline: 1.5px solid #1a73e8 !important; }
+  [data-tool="edit"] .ed-sheet, [data-tool="text"] .ed-sheet { cursor: text; }
+  [data-tool="draw"] .ed-sheet, [data-tool="highlight"] .ed-sheet, [data-tool="whiteout"] .ed-sheet { touch-action: none; cursor: crosshair; }
+  [data-tool="erase"] .ed-svg > [data-ai] { pointer-events: all; cursor: pointer; }
+  [data-tool="erase"] .ed-svg > [data-ai]:hover, [data-tool="erase"] .ed-text:hover { outline: 2px solid var(--debit); }
+  [data-tool="erase"] .ed-text { cursor: pointer; }
 </style>
 
 <div class="wrap">
+  <div class="appbar">
+    <div class="modes" role="group" aria-label="App">
+      <button class="mode" data-mode="editor" aria-pressed="false">PDF editor</button>
+      <button class="mode" data-mode="statements" aria-pressed="false">Bank statements</button>
+    </div>
+    <span class="small muted">Offline · nothing leaves this device</span>
+  </div>
+
+  <div id="status" hidden></div>
+
+  <section id="mode-editor" hidden></section>
+
+  <div id="mode-statements" hidden style="display:grid;gap:16px">
   <header class="top">
     <div class="brand">
       <h1>Bank Statement Analyzer</h1>
@@ -142,7 +211,6 @@
     </label>
   </header>
 
-  <div id="status" hidden></div>
   <section id="review-area" hidden></section>
 
   <nav class="tabs" role="tablist">
@@ -152,7 +220,18 @@
 
   <section id="panel-ledger" role="tabpanel" aria-labelledby="tab-ledger" style="display:grid;gap:14px"></section>
   <section id="panel-statements" role="tabpanel" aria-labelledby="tab-statements" hidden style="display:grid;gap:14px"></section>
+  </div>
 </div>
+
+<dialog id="confirm-dialog">
+  <form method="dialog">
+    <p id="confirm-text"></p>
+    <div class="row-actions">
+      <button class="btn danger" value="yes" id="confirm-yes">OK</button>
+      <button class="btn" value="no" autofocus>Cancel</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="pw-dialog">
   <form method="dialog" id="pw-form">
@@ -172,7 +251,10 @@
 
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/pdf.worker.min.js"></script>
+<script src="vendor/pdf-lib.min.js"></script>
 <script src="statement-parser.js"></script>
+<script src="pdf-editor-core.js"></script>
+<script src="pdf-editor.js"></script>
 <script>
 (() => {
   "use strict";
@@ -225,11 +307,12 @@
     account: null,
     start: null,
     tab: "ledger",
+    mode: "editor",
     queue: [],
     review: null,
     confirmDelete: null,
   };
-  try { state.tab = localStorage.getItem("bsa-tab") || "ledger"; } catch {}
+  try { state.tab = localStorage.getItem("bsa-tab") || "ledger"; state.mode = localStorage.getItem("bsa-mode") || "editor"; } catch {}
 
   // ------------------------------------------------------------ example (shown only while the database is empty)
   function exampleStatements() {
@@ -303,12 +386,42 @@
     } catch { toast("Could not save the file here. Use “Copy table” instead."); }
   }
 
+  async function saveBinary(filename, bytes, mime) {
+    try {
+      if (window.AndroidBridge && window.AndroidBridge.saveBase64) {
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        window.AndroidBridge.saveBase64(filename, mime, btoa(bin));
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+      toast("Saved " + filename);
+    } catch (e) { toast("Could not save the file here: " + e.message); }
+  }
+
+  function confirmBox(text, yes) {
+    return new Promise((resolve) => {
+      const dlg = $("#confirm-dialog");
+      $("#confirm-text").textContent = text;
+      $("#confirm-yes").textContent = yes || "OK";
+      dlg.onclose = () => resolve(dlg.returnValue === "yes");
+      dlg.returnValue = "";
+      dlg.showModal();
+    });
+  }
+
   // ------------------------------------------------------------ PDF import
   function askPassword(fileName, wrong) {
     return new Promise((resolve) => {
       const dlg = $("#pw-dialog");
       $("#pw-text").textContent = (wrong ? "That password didn't work. " : "") +
         `${fileName} is locked. Bank statement passwords are often a mix of your name, date of birth or customer ID.`;
+      $("#pw-skip").textContent = state.mode === "editor" ? "Cancel" : "Skip this file";
       $("#pw-input").value = "";
       const done = (v) => { dlg.close(); $("#pw-form").onsubmit = null; $("#pw-skip").onclick = null; resolve(v); };
       $("#pw-form").onsubmit = (e) => { e.preventDefault(); done($("#pw-input").value); };
@@ -364,12 +477,20 @@
     }
   }
 
-  // Android app: PDFs shared from Google Drive arrive here as base64.
-  window.importSharedPdf = (name, base64) => {
+  // Android app: PDFs opened ("Open with") or shared from Files, Drive or Gmail arrive here as base64.
+  // One PDF opens in the editor; several at once are read as bank statements.
+  window.importSharedPdf = (name, base64, count) => {
     const bin = atob(base64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    importFiles([{ name, bytes }]);
+    if ((count || 1) > 1) { setMode("statements"); importFiles([{ name, bytes }]); }
+    else { setMode("editor"); window.PdfEditor.open([{ name, bytes }]); }
+  };
+
+  // Android back button: returns true when the page handled it.
+  window.handleBack = async () => {
+    if (state.mode === "editor" && window.PdfEditor) return window.PdfEditor.back();
+    return false;
   };
 
   // ------------------------------------------------------------ review panel
@@ -593,6 +714,16 @@
     };
   }
 
+  // ------------------------------------------------------------ app modes
+  function setMode(m) {
+    state.mode = m;
+    try { localStorage.setItem("bsa-mode", m); } catch {}
+    document.querySelectorAll(".mode").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
+    $("#mode-editor").hidden = m !== "editor";
+    $("#mode-statements").hidden = m !== "statements";
+  }
+  document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+
   // ------------------------------------------------------------ tabs & boot
   function renderTabs() {
     document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === state.tab)));
@@ -614,7 +745,16 @@
 
   async function boot() {
     renderTabs();
+    setMode(state.mode);
     if (!window.pdfjsLib) setStatus("The PDF reader didn't load. Reload the page.", "err");
+    window.PdfEditor.init($("#mode-editor"), {
+      toast,
+      askPassword,
+      saveBinary,
+      confirm: confirmBox,
+      busy: (html, kind) => setStatus(html && kind ? html : html ? `<div class="busy"><span class="spinner"></span><span>${html}</span></div>` : "", kind),
+      analyze: (name, bytes) => { setMode("statements"); importFiles([{ name, bytes: bytes.slice() }]); },
+    });
     idb = await openDb();
     await reload();
   }
