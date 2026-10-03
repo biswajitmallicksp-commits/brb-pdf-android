@@ -54,6 +54,6 @@ jobs:
           make_latest: true
           files: BRB-Statement-Analyzer.apk
           body: |
-            Offline app (no API, no internet needed). Built from ${{ github.ref_name }} @ ${{ github.sha }}.
+            Offline PDF editor and bank statement analyzer (no API, no internet needed). Built from ${{ github.ref_name }} @ ${{ github.sha }}.
             Open this page on your phone, tap **BRB-Statement-Analyzer.apk**, and install it
             (allow "Install unknown apps" for your browser when asked).
