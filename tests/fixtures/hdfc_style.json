@@ -1,0 +1,195 @@
+{
+ "meta": {
+  "bankName": "HDFC Bank",
+  "accountHolder": "SOUMYA BANERJEE",
+  "accountNumber": "50100123456789",
+  "periodStart": "2025-07-01",
+  "periodEnd": "2025-07-31",
+  "openingBalance": null,
+  "closingBalance": null
+ },
+ "txns": [
+  {
+   "date": "2025-07-04",
+   "description": "ATM WDL ATM CASH 4521 PARK STREET KOLKATA",
+   "debit": 4429.02,
+   "credit": 0.0,
+   "balance": 47911.53
+  },
+  {
+   "date": "2025-07-05",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/rent share",
+   "debit": 0.0,
+   "credit": 15189.7,
+   "balance": 63101.23
+  },
+  {
+   "date": "2025-07-05",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 23396.01,
+   "balance": 86497.24
+  },
+  {
+   "date": "2025-07-08",
+   "description": "ELECTRICITY BILL CESC 1100223344",
+   "debit": 5594.49,
+   "credit": 0.0,
+   "balance": 80902.75
+  },
+  {
+   "date": "2025-07-09",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 4153.99,
+   "balance": 85056.74
+  },
+  {
+   "date": "2025-07-13",
+   "description": "ATM WDL ATM CASH 4521 PARK STREET KOLKATA",
+   "debit": 863.35,
+   "credit": 0.0,
+   "balance": 84193.39
+  },
+  {
+   "date": "2025-07-14",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 4587.0,
+   "balance": 88780.39
+  },
+  {
+   "date": "2025-07-14",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 4419.69,
+   "credit": 0.0,
+   "balance": 84360.7
+  },
+  {
+   "date": "2025-07-15",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 2203.22,
+   "credit": 0.0,
+   "balance": 82157.48
+  },
+  {
+   "date": "2025-07-15",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 4305.15,
+   "credit": 0.0,
+   "balance": 77852.33
+  },
+  {
+   "date": "2025-07-16",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 5552.75,
+   "credit": 0.0,
+   "balance": 72299.58
+  },
+  {
+   "date": "2025-07-17",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 3427.85,
+   "credit": 0.0,
+   "balance": 68871.73
+  },
+  {
+   "date": "2025-07-18",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/rent share",
+   "debit": 0.0,
+   "credit": 23517.88,
+   "balance": 92389.61
+  },
+  {
+   "date": "2025-07-19",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 4649.26,
+   "credit": 0.0,
+   "balance": 87740.35
+  },
+  {
+   "date": "2025-07-19",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 5746.3,
+   "credit": 0.0,
+   "balance": 81994.05
+  },
+  {
+   "date": "2025-07-20",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/rent share",
+   "debit": 0.0,
+   "credit": 12248.22,
+   "balance": 94242.27
+  },
+  {
+   "date": "2025-07-21",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 5450.54,
+   "credit": 0.0,
+   "balance": 88791.73
+  },
+  {
+   "date": "2025-07-23",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 1674.94,
+   "credit": 0.0,
+   "balance": 87116.79
+  },
+  {
+   "date": "2025-07-23",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 1506.75,
+   "credit": 0.0,
+   "balance": 85610.04
+  },
+  {
+   "date": "2025-07-24",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 387.94,
+   "credit": 0.0,
+   "balance": 85222.1
+  },
+  {
+   "date": "2025-07-26",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 543.27,
+   "credit": 0.0,
+   "balance": 84678.83
+  },
+  {
+   "date": "2025-07-26",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 293.2,
+   "credit": 0.0,
+   "balance": 84385.63
+  },
+  {
+   "date": "2025-07-26",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 1571.36,
+   "credit": 0.0,
+   "balance": 82814.27
+  },
+  {
+   "date": "2025-07-27",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 4775.24,
+   "credit": 0.0,
+   "balance": 78039.03
+  },
+  {
+   "date": "2025-07-30",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES PVT LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 7186.36,
+   "balance": 85225.39
+  },
+  {
+   "date": "2025-07-31",
+   "description": "ELECTRICITY BILL CESC 1100223344",
+   "debit": 3331.44,
+   "credit": 0.0,
+   "balance": 81893.95
+  }
+ ]
+}

@@ -1,0 +1,623 @@
+<title>Bank Statement Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: one column, passbook-ruled ledger table, summary strip above it. */
+  :root {
+    --paper: #f3f6f5;
+    --surface: #ffffff;
+    --ink: #13302a;
+    --muted: #566b65;
+    --rule: #d3dfdb;
+    --accent: #0d6b5b;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefe9;
+    --debit: #b3261e;
+    --credit: #1d7a45;
+    --none-bg: #eef4f2;
+    --missing-bg: #fbf0dc;
+    --missing-ink: #8a5300;
+    --danger-soft: #fbe3e1;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", Roboto, system-ui, sans-serif;
+    --font-num: "IBM Plex Mono", ui-monospace, "Roboto Mono", Menlo, monospace;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1614; --surface: #15201d; --ink: #e2ede9; --muted: #93a8a1; --rule: #283935;
+      --accent: #52c3a8; --accent-ink: #052019; --accent-soft: #173a32; --debit: #ff8f86; --credit: #7fd9a5;
+      --none-bg: #19262277; --missing-bg: #3a2c14; --missing-ink: #f2bd6a; --danger-soft: #45201d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1614; --surface: #15201d; --ink: #e2ede9; --muted: #93a8a1; --rule: #283935;
+    --accent: #52c3a8; --accent-ink: #052019; --accent-soft: #173a32; --debit: #ff8f86; --credit: #7fd9a5;
+    --none-bg: #19262277; --missing-bg: #3a2c14; --missing-ink: #f2bd6a; --danger-soft: #45201d;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--font-body); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding-inline: 16px; padding-block: 12px 48px; display: grid; gap: 16px; }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+  h1 { font-size: 1.45rem; letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; }
+  h3 { font-size: 1rem; }
+  p { margin: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 0.82rem; }
+  .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { display: grid; gap: 2px; min-width: 0; }
+  .brand p { font-size: 0.85rem; color: var(--muted); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--rule); background: var(--surface);
+    padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.9rem; min-height: 40px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.danger { color: var(--debit); }
+  .btn.quiet { border-color: transparent; background: transparent; padding-inline: 8px; }
+  .btn[disabled] { opacity: 0.5; cursor: default; }
+  .file-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--rule); }
+  .tab { border: 0; background: none; padding: 10px 14px; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .tab .count { font-family: var(--font-num); font-size: 0.75rem; color: var(--muted); margin-left: 4px; }
+
+  .banner { border-radius: var(--radius); padding: 10px 14px; background: var(--accent-soft); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+  .banner.warn { background: var(--missing-bg); color: var(--missing-ink); }
+  .banner.err { background: var(--danger-soft); color: var(--debit); }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
+  .field { display: grid; gap: 4px; min-width: 0; }
+  .field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  .field input, .field select { border: 1px solid var(--rule); background: var(--surface); border-radius: 8px; padding: 8px 10px; min-height: 40px; min-width: 0; max-width: 100%; }
+  .field select { max-width: 340px; }
+
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+  .summary > div { padding: 10px 14px; display: grid; gap: 2px; align-content: start; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin: 0 -1px -1px 0; }
+  .summary .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  .summary .v { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 1.02rem; }
+  .meter { height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .meter span { display: block; height: 100%; background: var(--accent); }
+
+  .table-box { overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); max-height: 70vh; overflow-y: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.85rem; }
+  th { position: sticky; top: 0; background: var(--surface); text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
+    padding: 10px; border-bottom: 2px solid var(--ink); z-index: 1; white-space: nowrap; }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  td.n, th.n { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.date { white-space: nowrap; font-family: var(--font-num); font-size: 0.8rem; }
+  td.desc { min-width: 220px; max-width: 420px; overflow-wrap: anywhere; }
+  td.dr:not(.zero) { color: var(--debit); }
+  td.cr:not(.zero) { color: var(--credit); }
+  td.zero { color: var(--muted); }
+  td.bal { font-weight: 500; }
+  tr.day-start td { border-top: 1px solid var(--rule); }
+  tr.none td { background: var(--none-bg); color: var(--muted); }
+  tr.missing td { background: var(--missing-bg); color: var(--missing-ink); }
+  tr.bad td { box-shadow: inset 3px 0 0 var(--debit); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+  .card dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; font-size: 0.88rem; }
+  .card dt { color: var(--muted); }
+  .card dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .card .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .span { font-family: var(--font-num); font-size: 0.82rem; background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; justify-self: start; }
+
+  .review { background: var(--surface); border: 2px solid var(--accent); border-radius: var(--radius); padding: 16px; display: grid; gap: 14px; }
+  .review .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 14px; }
+  .row-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  dialog { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); color: var(--ink); padding: 18px; max-width: min(420px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+  dialog form { display: grid; gap: 12px; }
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--paper);
+    padding: 10px 16px; border-radius: 8px; font-size: 0.9rem; max-width: calc(100vw - 32px); z-index: 10; }
+  .busy { display: flex; gap: 10px; align-items: center; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--rule); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+  .help { display: grid; gap: 6px; font-size: 0.88rem; color: var(--muted); max-width: 70ch; }
+  .help ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Bank Statement Analyzer</h1>
+      <p>PDF statements become a 365-day ledger. Everything runs on this device; no API, nothing is uploaded.</p>
+    </div>
+    <label class="btn primary file-btn" for="pdf-input">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v9M4 6l4-4 4 4M2 13h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Upload PDF statements
+      <input id="pdf-input" type="file" accept="application/pdf,.pdf" multiple>
+    </label>
+  </header>
+
+  <div id="status" hidden></div>
+  <section id="review-area" hidden></section>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-ledger" aria-selected="true" data-tab="ledger">365-day ledger</button>
+    <button class="tab" role="tab" id="tab-statements" aria-selected="false" data-tab="statements">Statements<span class="count" id="stmt-count">0</span></button>
+  </nav>
+
+  <section id="panel-ledger" role="tabpanel" aria-labelledby="tab-ledger" style="display:grid;gap:14px"></section>
+  <section id="panel-statements" role="tabpanel" aria-labelledby="tab-statements" hidden style="display:grid;gap:14px"></section>
+</div>
+
+<dialog id="pw-dialog">
+  <form method="dialog" id="pw-form">
+    <h3>Password needed</h3>
+    <p class="small muted" id="pw-text"></p>
+    <div class="field">
+      <label for="pw-input">PDF password</label>
+      <input id="pw-input" type="password" autocomplete="off">
+    </div>
+    <div class="row-actions">
+      <button class="btn primary" value="ok" id="pw-ok">Unlock</button>
+      <button class="btn" value="skip" id="pw-skip" type="button">Skip this file</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/pdf.worker.min.js"></script>
+<script src="statement-parser.js"></script>
+<script>
+(() => {
+  "use strict";
+  const P = window.StatementParser;
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const inr = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v) => (v == null ? "—" : inr.format(v));
+
+  // ------------------------------------------------------------ storage (IndexedDB on this device)
+  const DB_NAME = "bank-statement-analyzer";
+  let idb = null;
+  let memory = []; // used when the browser blocks storage
+  function openDb() {
+    return new Promise((resolve) => {
+      try {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("statements", { keyPath: "id", autoIncrement: true });
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+        req.onblocked = () => resolve(null);
+      } catch { resolve(null); }
+    });
+  }
+  function tx(mode, fn) {
+    return new Promise((resolve, reject) => {
+      const t = idb.transaction("statements", mode);
+      const store = t.objectStore("statements");
+      const out = fn(store);
+      t.oncomplete = () => resolve(out && out.result !== undefined ? out.result : undefined);
+      t.onerror = () => reject(t.error);
+    });
+  }
+  async function allStatements() {
+    if (!idb) return memory.slice();
+    try { return await tx("readonly", (s) => s.getAll()); } catch { return memory.slice(); }
+  }
+  async function putStatement(st) {
+    if (!idb) { st.id = st.id || Date.now(); memory = memory.filter((m) => m.id !== st.id).concat(st); return; }
+    await tx("readwrite", (s) => s.put(st));
+  }
+  async function deleteStatement(id) {
+    if (!idb) { memory = memory.filter((m) => m.id !== id); return; }
+    await tx("readwrite", (s) => s.delete(id));
+  }
+
+  // ------------------------------------------------------------ state
+  const state = {
+    statements: [],
+    account: null,
+    start: null,
+    tab: "ledger",
+    queue: [],
+    review: null,
+    confirmDelete: null,
+  };
+  try { state.tab = localStorage.getItem("bsa-tab") || "ledger"; } catch {}
+
+  // ------------------------------------------------------------ example (shown only while the database is empty)
+  function exampleStatements() {
+    const txns = [];
+    let bal = 48250.0;
+    const items = [
+      ["NEFT CR-ACME TECHNOLOGIES PVT LTD-SALARY", 0, 62000], ["UPI/DR/SWIGGY/Payment", 486.5, 0], ["ATM WDL PARK STREET KOLKATA", 5000, 0],
+      ["ELECTRICITY BILL CESC 1100223344", 2310, 0], ["UPI/CR/RAHUL DAS/rent share", 0, 9000], ["POS BIG BAZAAR SALT LAKE", 3142.75, 0],
+      ["ACH D- LIC OF INDIA-1234567", 4200, 0], ["IMPS-MOTHER-family support", 10000, 0], ["INTEREST CREDITED", 0, 312],
+    ];
+    let k = 0;
+    for (let day = 0; day < 61; day++) {
+      const n = [1, 0, 2, 0, 1, 3, 0][day % 7];
+      for (let j = 0; j < n; j++) {
+        const [d, dr, cr] = items[k++ % items.length];
+        bal = Math.round((bal - dr + cr) * 100) / 100;
+        txns.push({ date: P.addDays("2025-06-01", day), description: d, debit: dr, credit: cr, balance: bal });
+      }
+    }
+    return [{ id: -1, example: true, bankName: "Example Bank", accountHolder: "Sample Customer", accountNumber: "XXXXXX0000",
+      periodStart: "2025-06-01", periodEnd: "2025-07-31", openingBalance: 48250, closingBalance: bal, currency: "INR",
+      fileName: "example.pdf", importedAt: 0, txns }];
+  }
+
+  // ------------------------------------------------------------ helpers
+  let toastTimer;
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (t.hidden = true), 3500);
+  }
+  function setStatus(html, kind = "") {
+    const el = $("#status");
+    if (!html) { el.hidden = true; el.innerHTML = ""; return; }
+    el.className = "banner " + kind;
+    el.innerHTML = html;
+    el.hidden = false;
+  }
+  function accounts(list) {
+    const map = new Map();
+    for (const s of list) {
+      const key = P.accountKey(s);
+      if (!map.has(key)) {
+        const tail = (s.accountNumber || "").replace(/\D/g, "").slice(-4) || s.accountNumber || "—";
+        map.set(key, { key, label: `${s.bankName || "Unknown bank"} · ${s.accountHolder || "Unknown"} · ••${tail}`, list: [] });
+      }
+      map.get(key).list.push(s);
+    }
+    return [...map.values()];
+  }
+
+  async function saveFile(filename, text, mime) {
+    try {
+      if (window.AndroidBridge && window.AndroidBridge.saveFile) { window.AndroidBridge.saveFile(filename, mime, text); return; }
+      if (window.claude && typeof window.claude.use === "function") {
+        const dl = await window.claude.use("downloads");
+        if (dl) {
+          try { await dl.save({ filename, data: text }); toast("Saved " + filename); }
+          catch (e) { if (e && e.code !== "declined") toast("Could not save the file here. Use “Copy table” instead."); }
+          return;
+        }
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    } catch { toast("Could not save the file here. Use “Copy table” instead."); }
+  }
+
+  // ------------------------------------------------------------ PDF import
+  function askPassword(fileName, wrong) {
+    return new Promise((resolve) => {
+      const dlg = $("#pw-dialog");
+      $("#pw-text").textContent = (wrong ? "That password didn't work. " : "") +
+        `${fileName} is locked. Bank statement passwords are often a mix of your name, date of birth or customer ID.`;
+      $("#pw-input").value = "";
+      const done = (v) => { dlg.close(); $("#pw-form").onsubmit = null; $("#pw-skip").onclick = null; resolve(v); };
+      $("#pw-form").onsubmit = (e) => { e.preventDefault(); done($("#pw-input").value); };
+      $("#pw-skip").onclick = () => done(null);
+      dlg.oncancel = () => done(null);
+      dlg.showModal();
+      $("#pw-input").focus();
+    });
+  }
+
+  async function readPdf(name, bytes) {
+    const task = pdfjsLib.getDocument({ data: bytes, isEvalSupported: false });
+    let skipped = false;
+    task.onPassword = async (update, reason) => {
+      const pw = await askPassword(name, reason === pdfjsLib.PasswordResponses.INCORRECT_PASSWORD);
+      if (pw == null) { skipped = true; task.destroy(); } else update(pw);
+    };
+    try {
+      const pdf = await task.promise;
+      const lines = await P.extractLines(pdf);
+      pdf.destroy();
+      return P.parseStatement(lines);
+    } catch (e) {
+      if (skipped) return null;
+      throw e;
+    }
+  }
+
+  async function importFiles(files) {
+    for (const f of files) state.queue.push(f);
+    if (state.review || state.busy) return;
+    nextInQueue();
+  }
+
+  async function nextInQueue() {
+    const f = state.queue.shift();
+    if (!f) { setStatus(""); return; }
+    state.busy = true;
+    setStatus(`<div class="busy"><span class="spinner"></span><span>Reading <b>${esc(f.name)}</b>…${state.queue.length ? ` (${state.queue.length} more waiting)` : ""}</span></div>`);
+    try {
+      const bytes = f.bytes || new Uint8Array(await f.arrayBuffer());
+      const parsed = await readPdf(f.name, bytes);
+      state.busy = false;
+      if (!parsed) { toast(`Skipped ${f.name}`); return nextInQueue(); }
+      setStatus("");
+      state.review = { fileName: f.name, ...parsed, showAll: false };
+      renderReview();
+      $("#review-area").scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      state.busy = false;
+      setStatus(`Couldn't read <b>${esc(f.name)}</b>: ${esc(e && e.message ? e.message : e)}. Check that it is a text PDF downloaded from net banking, not a photo or scan.`, "err");
+      setTimeout(nextInQueue, 50);
+    }
+  }
+
+  // Android app: PDFs shared from Google Drive arrive here as base64.
+  window.importSharedPdf = (name, base64) => {
+    const bin = atob(base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    importFiles([{ name, bytes }]);
+  };
+
+  // ------------------------------------------------------------ review panel
+  function renderReview() {
+    const area = $("#review-area");
+    const r = state.review;
+    if (!r) { area.hidden = true; area.innerHTML = ""; return; }
+    const m = r.meta;
+    const rows = r.showAll ? r.txns : r.txns.slice(0, 12);
+    let prev = m.openingBalance;
+    const bad = new Set();
+    r.txns.forEach((t, i) => {
+      if (prev != null && t.balance != null && Math.abs(prev - t.debit + t.credit - t.balance) > 0.015) bad.add(i);
+      prev = t.balance != null ? t.balance : prev;
+    });
+    area.innerHTML = `
+      <div class="review">
+        <div style="display:grid;gap:4px">
+          <h2>Check before saving</h2>
+          <p class="small muted">${esc(r.fileName)} · ${r.txns.length} transactions found. Correct any detail the reader got wrong, then save it to the database.</p>
+        </div>
+        ${r.warnings.map((w) => `<div class="banner warn small">${esc(w)}</div>`).join("")}
+        <div class="grid">
+          ${field("rv-bank", "Bank name", m.bankName)}
+          ${field("rv-holder", "Account name", m.accountHolder)}
+          ${field("rv-number", "Account number", m.accountNumber)}
+          ${field("rv-start", "Statement from", m.periodStart, "date")}
+          ${field("rv-end", "Statement to", m.periodEnd, "date")}
+          ${field("rv-open", "Opening balance", m.openingBalance ?? "", "number")}
+        </div>
+        <div class="table-box" style="max-height:50vh">
+          <table>
+            <thead><tr><th>Date</th><th>Description of transaction</th><th class="n">Debit</th><th class="n">Credit</th><th class="n">Balance</th></tr></thead>
+            <tbody>${rows.map((t, i) => `<tr class="${bad.has(i) ? "bad" : ""}"><td class="date">${P.fmtDate(t.date)}</td><td class="desc">${esc(t.description)}</td>
+              <td class="n dr ${t.debit ? "" : "zero"}">${money(t.debit)}</td><td class="n cr ${t.credit ? "" : "zero"}">${money(t.credit)}</td><td class="n">${money(t.balance)}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+        ${r.txns.length > 12 ? `<button class="btn quiet" id="rv-more">${r.showAll ? "Show fewer rows" : `Show all ${r.txns.length} rows`}</button>` : ""}
+        <div class="row-actions">
+          <button class="btn primary" id="rv-save" ${r.txns.length ? "" : "disabled"}>Save to database</button>
+          <button class="btn" id="rv-discard">Discard</button>
+        </div>
+      </div>`;
+    area.hidden = false;
+    const more = $("#rv-more");
+    if (more) more.onclick = () => { readReviewFields(); r.showAll = !r.showAll; renderReview(); };
+    $("#rv-discard").onclick = () => { state.review = null; renderReview(); nextInQueue(); };
+    $("#rv-save").onclick = saveReview;
+  }
+  function field(id, label, value, type = "text") {
+    return `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" ${type === "number" ? 'step="0.01"' : ""} value="${esc(value ?? "")}"></div>`;
+  }
+  function readReviewFields() {
+    const m = state.review.meta;
+    m.bankName = $("#rv-bank").value.trim();
+    m.accountHolder = $("#rv-holder").value.trim();
+    m.accountNumber = $("#rv-number").value.trim();
+    m.periodStart = $("#rv-start").value || null;
+    m.periodEnd = $("#rv-end").value || null;
+    const ob = $("#rv-open").value;
+    m.openingBalance = ob === "" ? null : Number(ob);
+  }
+  async function saveReview() {
+    readReviewFields();
+    const r = state.review;
+    const st = { ...r.meta, fileName: r.fileName, importedAt: Date.now(), txns: r.txns };
+    // Re-uploading the same account + period replaces the earlier copy.
+    for (const old of state.statements) {
+      if (!old.example && P.accountKey(old) === P.accountKey(st) && old.periodStart === st.periodStart && old.periodEnd === st.periodEnd) {
+        await deleteStatement(old.id);
+      }
+    }
+    try { await putStatement(st); } catch (e) { toast("Could not save: " + e.message); return; }
+    state.review = null;
+    state.account = P.accountKey(st);
+    state.start = null;
+    renderReview();
+    await reload();
+    toast(`Saved ${st.bankName || "statement"}: ${st.txns.length} transactions`);
+    nextInQueue();
+  }
+
+  // ------------------------------------------------------------ ledger panel
+  function currentLedger() {
+    const list = state.statements.length ? state.statements : exampleStatements();
+    const accs = accounts(list);
+    if (!accs.find((a) => a.key === state.account)) state.account = accs[0] && accs[0].key;
+    const acc = accs.find((a) => a.key === state.account);
+    const start = state.start || P.defaultStart(acc.list);
+    return { accs, acc, ledger: start ? P.buildLedger(acc.list, start) : null, example: !state.statements.length };
+  }
+
+  function renderLedger() {
+    const panel = $("#panel-ledger");
+    const { accs, acc, ledger, example } = currentLedger();
+    if (!ledger) { panel.innerHTML = `<p class="muted">No transactions in this account yet.</p>`; return; }
+    const pct = Math.round((ledger.daysCovered / ledger.days) * 100);
+    let lastDate = null;
+    const body = ledger.rows.map((r) => {
+      const dayStart = r.date !== lastDate;
+      lastDate = r.date;
+      const bal = r.kind === "missing" ? "—" : r.dayEndBalance == null ? "0" : money(r.dayEndBalance);
+      return `<tr class="${r.kind === "txn" ? "" : r.kind}${dayStart ? " day-start" : ""}"><td class="date">${P.fmtDate(r.date)}</td><td class="desc">${esc(r.description)}</td>` +
+        `<td class="n dr ${r.debit ? "" : "zero"}">${money(r.debit)}</td><td class="n cr ${r.credit ? "" : "zero"}">${money(r.credit)}</td>` +
+        `<td class="n bal ${r.dayEndBalance == null ? "zero" : ""}">${bal}</td></tr>`;
+    }).join("");
+
+    panel.innerHTML = `
+      ${example ? `<div class="banner small"><span><b>Example data.</b> This is a sample account so you can see the layout. Upload your PDF statement to build your own ledger.</span></div>` : ""}
+      <div class="controls">
+        <div class="field"><label for="acc-select">Account</label>
+          <select id="acc-select">${accs.map((a) => `<option value="${esc(a.key)}" ${a.key === acc.key ? "selected" : ""}>${esc(a.label)}</option>`).join("")}</select></div>
+        <div class="field"><label for="start-input">First day</label><input id="start-input" type="date" value="${ledger.start}"></div>
+        <div class="field"><label>Last day</label><div class="num" style="padding:8px 0">${P.fmtDate(ledger.end)}</div></div>
+        ${state.start ? `<button class="btn quiet" id="start-reset">Use statement start</button>` : ""}
+        <span style="flex:1"></span>
+        <button class="btn" id="copy-btn">Copy table</button>
+        <button class="btn primary" id="csv-btn">Export CSV</button>
+      </div>
+      <div class="summary">
+        <div><span class="k">Days covered</span><span class="v">${ledger.daysCovered} / ${ledger.days}</span><div class="meter"><span style="width:${pct}%"></span></div></div>
+        <div><span class="k">Opening balance</span><span class="v">${money(ledger.openingBalance)}</span></div>
+        <div><span class="k">Total debit</span><span class="v" style="color:var(--debit)">${money(ledger.totalDebit)}</span></div>
+        <div><span class="k">Total credit</span><span class="v" style="color:var(--credit)">${money(ledger.totalCredit)}</span></div>
+        <div><span class="k">Last day-end balance</span><span class="v">${money(ledger.closingBalance)}</span></div>
+      </div>
+      ${ledger.firstMissing ? `<div class="banner warn small"><span>No statement covers <b>${P.fmtDate(ledger.firstMissing)}</b> onwards${ledger.daysCovered < ledger.days ? ` (${ledger.days - ledger.daysCovered} days missing)` : ""}. Upload the next statement to fill those rows.</span></div>` : ""}
+      <div class="table-box">
+        <table>
+          <thead><tr><th>Date</th><th>Description of transaction</th><th class="n">Debit amount</th><th class="n">Credit amount</th><th class="n">Day end balance</th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+      <p class="small muted">${ledger.rows.length} rows for ${ledger.days} days. Days with several transactions show the day end balance on the last row only; the other rows show 0.</p>`;
+
+    $("#acc-select").onchange = (e) => { state.account = e.target.value; state.start = null; renderLedger(); };
+    $("#start-input").onchange = (e) => { state.start = e.target.value || null; renderLedger(); };
+    const reset = $("#start-reset");
+    if (reset) reset.onclick = () => { state.start = null; renderLedger(); };
+    $("#csv-btn").onclick = () => {
+      const name = `${(acc.label.split(" · ")[0] || "ledger").replace(/[^A-Za-z0-9]+/g, "_")}_${ledger.start}_to_${ledger.end}.csv`;
+      saveFile(name, P.ledgerToCsv(ledger), "text/csv");
+    };
+    $("#copy-btn").onclick = async () => {
+      const tsv = ["Date\tDescription of Transaction\tDebit Amount\tCredit Amount\tDay End Balance"].concat(ledger.rows.map((r) =>
+        [P.fmtDate(r.date), r.description.replace(/\s+/g, " "), r.debit.toFixed(2), r.credit.toFixed(2),
+         r.kind === "missing" ? "" : r.dayEndBalance == null ? "0" : r.dayEndBalance.toFixed(2)].join("\t"))).join("\n");
+      try { await navigator.clipboard.writeText(tsv); toast("Table copied. Paste it into Google Sheets or Excel."); }
+      catch { toast("Copy isn't allowed here. Use Export CSV."); }
+    };
+  }
+
+  // ------------------------------------------------------------ statements panel
+  function renderStatements() {
+    const panel = $("#panel-statements");
+    $("#stmt-count").textContent = state.statements.length;
+    const cards = state.statements
+      .slice()
+      .sort((a, b) => (a.periodStart || "").localeCompare(b.periodStart || ""))
+      .map((s) => `
+        <article class="card">
+          <div style="display:grid;gap:6px">
+            <h3>${esc(s.bankName || "Unknown bank")}</h3>
+            <span class="span">${P.fmtDate(s.periodStart) || "?"} → ${P.fmtDate(s.periodEnd) || "?"}</span>
+          </div>
+          <dl>
+            <dt>Account name</dt><dd>${esc(s.accountHolder || "—")}</dd>
+            <dt>Account no.</dt><dd class="num">${esc(s.accountNumber || "—")}</dd>
+            <dt>Transactions</dt><dd class="num">${s.txns.length}</dd>
+            <dt>Opening</dt><dd class="num">${money(s.openingBalance)}</dd>
+            <dt>Closing</dt><dd class="num">${money(s.closingBalance)}</dd>
+            <dt>File</dt><dd class="small muted">${esc(s.fileName)}</dd>
+          </dl>
+          <div class="actions">
+            ${state.confirmDelete === s.id
+              ? `<button class="btn danger" data-del-yes="${s.id}">Delete this statement</button><button class="btn" data-del-no>Keep</button>`
+              : `<button class="btn quiet danger" data-del="${s.id}">Delete</button>`}
+          </div>
+        </article>`).join("");
+
+    panel.innerHTML = `
+      ${idb ? "" : `<div class="banner warn small">This browser is blocking storage, so statements are kept only until you close the page. Use “Back up” to keep a copy.</div>`}
+      ${state.statements.length ? `<div class="cards">${cards}</div>` : `<div class="help"><h3 style="color:var(--ink)">No statements saved yet</h3><p>Each PDF you upload is saved here with its bank name, account name, account number and statement period.</p></div>`}
+      <div class="controls">
+        <button class="btn" id="backup-btn" ${state.statements.length ? "" : "disabled"}>Back up (JSON)</button>
+        <label class="btn file-btn" for="restore-input">Restore backup<input id="restore-input" type="file" accept="application/json,.json"></label>
+      </div>
+      <div class="help">
+        <h3 style="color:var(--ink)">Uploading from Google Drive</h3>
+        <ul>
+          <li>Tap <b>Upload PDF statements</b> and choose <b>Drive</b> in the file picker. You can select several months at once.</li>
+          <li>Use the PDF your net banking sends (text PDF). Photos or scanned pages can't be read without OCR.</li>
+          <li>Locked PDFs ask for their password; it is used only on this device.</li>
+          <li>Statements are stored in this browser on this device. Back up before clearing browser data.</li>
+        </ul>
+      </div>`;
+
+    panel.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { state.confirmDelete = Number(b.dataset.del); renderStatements(); }));
+    panel.querySelectorAll("[data-del-no]").forEach((b) => (b.onclick = () => { state.confirmDelete = null; renderStatements(); }));
+    panel.querySelectorAll("[data-del-yes]").forEach((b) => (b.onclick = async () => {
+      await deleteStatement(Number(b.dataset.delYes));
+      state.confirmDelete = null;
+      await reload();
+      toast("Statement deleted");
+    }));
+    const backup = $("#backup-btn");
+    if (backup) backup.onclick = () => saveFile(`statements-backup-${new Date().toISOString().slice(0, 10)}.json`,
+      JSON.stringify({ app: "bank-statement-analyzer", version: 1, statements: state.statements }, null, 1), "application/json");
+    $("#restore-input").onchange = async (e) => {
+      const f = e.target.files[0];
+      e.target.value = "";
+      if (!f) return;
+      try {
+        const data = JSON.parse(await f.text());
+        const list = Array.isArray(data) ? data : data.statements;
+        if (!Array.isArray(list)) throw new Error("not a backup file");
+        for (const s of list) { const { id, ...rest } = s; await putStatement(rest); }
+        await reload();
+        toast(`Restored ${list.length} statement(s)`);
+      } catch (err) { toast("Restore failed: " + err.message); }
+    };
+  }
+
+  // ------------------------------------------------------------ tabs & boot
+  function renderTabs() {
+    document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === state.tab)));
+    $("#panel-ledger").hidden = state.tab !== "ledger";
+    $("#panel-statements").hidden = state.tab !== "statements";
+  }
+  document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => {
+    state.tab = t.dataset.tab;
+    try { localStorage.setItem("bsa-tab", state.tab); } catch {}
+    renderTabs();
+  }));
+  $("#pdf-input").onchange = (e) => { const files = [...e.target.files]; e.target.value = ""; importFiles(files); };
+
+  async function reload() {
+    state.statements = await allStatements();
+    renderLedger();
+    renderStatements();
+  }
+
+  async function boot() {
+    renderTabs();
+    if (!window.pdfjsLib) setStatus("The PDF reader didn't load. Reload the page.", "err");
+    idb = await openDb();
+    await reload();
+  }
+  boot();
+})();
+</script>

@@ -1,46 +1,50 @@
-# Statement Analyzer (Android)
+# Bank Statement Analyzer
 
-Android app that turns PDF bank statements into a 365-day ledger.
+Turns PDF bank statements into a 365-day ledger. It is a single HTML page that runs on your phone or computer.
+**It uses no API, no API key and no internet service.** The PDF is read on the device by
+[pdf.js](https://mozilla.github.io/pdf.js/) (bundled in `web/vendor/`), and the statements are saved in the
+browser's database on that device.
 
-1. **Upload** one or more PDF statements: pick them from Google Drive (or phone storage) with the **Upload PDF** button, or use *Send a copy* / *Open with* in the Google Drive app.
-2. **Gemini reads the PDF**: the bank name, account holder, account number, statement period, opening and closing balances, and every transaction. Password-protected PDFs are unlocked on the phone first.
-3. **Saved to a database**: each statement is stored in an on-device SQLite database with its metadata (bank, account name, account number, statement span) and its transactions.
-4. **365-day ledger**: starts on the first date of the earliest statement and has these columns:
+## What it does
+
+1. **Upload** one or more PDF statements, for example from Google Drive through the file picker.
+   Password-protected PDFs ask for their password.
+2. **Reading** finds the transaction table (date, description, debit, credit, balance) and the statement details
+   (bank name, account name, account number, statement period, opening balance). It uses the column headers
+   and checks every row against the printed running balance.
+3. **Review** shows what was read. You can correct any detail, then tap **Save to database**.
+4. **Database** stores each statement with its details. Re-uploading the same statement replaces it.
+5. **365-day ledger** starts on the first date of the earliest statement:
 
 | Date | Description of Transaction | Debit Amount | Credit Amount | Day End Balance |
 |---|---|---|---|---|
 | 01-Jun-2025 | UPI/… | 100.00 | 0.00 | 0 |
 | 01-Jun-2025 | Salary | 0.00 | 500.00 | 1,400.00 |
 | 02-Jun-2025 | No transaction | 0.00 | 0.00 | 1,400.00 |
-| … | | | | |
 | 01-Aug-2025 | Statement not uploaded | 0.00 | 0.00 | — |
 
-   - A day with several transactions gets one row per transaction. Only the **last** row shows the day-end balance; the other rows show 0.
-   - A day with no transactions shows 0 debit, 0 credit and the previous day's balance.
-   - If the uploaded statements don't cover all 365 days, the app tells you which date the next statement should start from. Upload it and the ledger fills in. Overlapping statements are de-duplicated.
-   - You can change the start date, and switch between accounts if you upload statements for more than one.
-   - **Export** (share icon) saves the ledger as a CSV file that opens in Excel or Google Sheets. You can save it straight to Google Drive.
+   - A day with several transactions shows the day end balance on its last row only; the other rows show 0.
+   - A day without transactions shows 0 / 0 and the previous day's balance.
+   - If the statements don't cover 365 days, the app tells you which date the next statement must start from.
+     Overlapping statements are de-duplicated.
+   - **Export CSV** (opens in Excel or Google Sheets) or **Copy table**. Statements can be backed up and restored as JSON.
 
-## Install on your phone
+Works with text PDFs downloaded from net banking. Scanned or photographed statements need OCR, which is not included.
 
-Each push builds the APK on GitHub Actions and publishes it under **Releases**.
+## Ways to use it
 
-1. On your phone, open this repository's **Releases** page and download `BRB-Statement-Analyzer.apk` from the latest release.
-2. Open the file and allow *Install unknown apps* for your browser when Android asks.
-3. In the app, go to **Settings**, tap **Get a free API key** (Google AI Studio), paste the key and tap **Save**.
+- **Android app (offline):** download `BRB-Statement-Analyzer.apk` from this repository's **Releases** page on your phone
+  and install it. GitHub Actions builds and publishes a new APK on every push. The app has no internet permission.
+- **Any browser:** open `web/index.html` through any static web host (GitHub Pages, Netlify...).
 
-New releases install over the old app and keep your saved statements, because every build is signed with the same key (`app/signing/`).
-
-## Build locally
+## Development
 
 ```
-./gradlew assembleRelease   # needs the Android SDK (ANDROID_HOME)
+cd tests && npm ci && npm test          # parser + ledger tests on sample statements
+python3 tests/make_fixtures.py          # regenerate the sample PDFs (needs reportlab)
+./gradlew assembleRelease               # build the APK (needs the Android SDK)
 ```
 
-## Code map
-
-- `ai/GeminiClient.kt`: sends the PDF to the Gemini API (`gemini-2.5-flash` by default) and requests structured JSON.
-- `pdf/PdfUnlocker.kt`: removes PDF passwords with PdfBox-Android.
-- `data/StatementDb.kt`: the SQLite database (`statements` and `transactions` tables).
-- `ledger/LedgerBuilder.kt`: builds the 365-day ledger (unit-tested in `app/src/test`).
-- `ui/`: the Jetpack Compose screens (Ledger, Statements, Settings).
+- `web/statement-parser.js`: PDF text → transactions and statement details; 365-day ledger; CSV.
+- `web/index.html`: the app UI (upload, review, statements database, ledger, export).
+- `app/`: the Android WebView shell that serves `web/` from inside the APK.

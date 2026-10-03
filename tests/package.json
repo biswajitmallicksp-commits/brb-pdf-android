@@ -1,0 +1,6 @@
+{
+  "name": "statement-analyzer-tests",
+  "private": true,
+  "scripts": { "test": "node --test" },
+  "devDependencies": { "pdfjs-dist": "3.11.174" }
+}

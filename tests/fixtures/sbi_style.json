@@ -1,0 +1,258 @@
+{
+ "meta": {
+  "bankName": "State Bank of India",
+  "accountHolder": "BISWAJIT MALLICK",
+  "accountNumber": "00000039876543210",
+  "periodStart": "2025-06-01",
+  "periodEnd": "2025-06-30",
+  "openingBalance": 10000.0,
+  "closingBalance": 158460.12
+ },
+ "txns": [
+  {
+   "date": "2025-06-02",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES  LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 6413.97,
+   "balance": 16413.97
+  },
+  {
+   "date": "2025-06-02",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4 -family support",
+   "debit": 4742.9,
+   "credit": 0.0,
+   "balance": 11671.07
+  },
+  {
+   "date": "2025-06-04",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4 -family support",
+   "debit": 3664.26,
+   "credit": 0.0,
+   "balance": 8006.81
+  },
+  {
+   "date": "2025-06-05",
+   "description": "ELECTRICITY BILL CESC 1100223344",
+   "debit": 1634.67,
+   "credit": 0.0,
+   "balance": 6372.14
+  },
+  {
+   "date": "2025-06-05",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES  LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 22540.62,
+   "balance": 28912.76
+  },
+  {
+   "date": "2025-06-05",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 3914.8,
+   "credit": 0.0,
+   "balance": 24997.96
+  },
+  {
+   "date": "2025-06-06",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/ren",
+   "debit": 0.0,
+   "credit": 24227.56,
+   "balance": 49225.52
+  },
+  {
+   "date": "2025-06-06",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 5581.21,
+   "balance": 54806.73
+  },
+  {
+   "date": "2025-06-06",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/ren",
+   "debit": 0.0,
+   "credit": 16937.37,
+   "balance": 71744.1
+  },
+  {
+   "date": "2025-06-07",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 2526.27,
+   "credit": 0.0,
+   "balance": 69217.83
+  },
+  {
+   "date": "2025-06-08",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 769.3,
+   "credit": 0.0,
+   "balance": 68448.53
+  },
+  {
+   "date": "2025-06-08",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 1740.75,
+   "credit": 0.0,
+   "balance": 66707.78
+  },
+  {
+   "date": "2025-06-08",
+   "description": "ELECTRICITY BILL CESC 1100223344",
+   "debit": 1494.3,
+   "credit": 0.0,
+   "balance": 65213.48
+  },
+  {
+   "date": "2025-06-09",
+   "description": "ATM WDL ATM CASH 4521 PARK STREET KOLK",
+   "debit": 2234.39,
+   "credit": 0.0,
+   "balance": 62979.09
+  },
+  {
+   "date": "2025-06-11",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 2742.88,
+   "balance": 65721.97
+  },
+  {
+   "date": "2025-06-12",
+   "description": "ELECTRICITY BILL CESC 1100223344",
+   "debit": 4409.96,
+   "credit": 0.0,
+   "balance": 61312.01
+  },
+  {
+   "date": "2025-06-13",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4 -family support",
+   "debit": 3900.58,
+   "credit": 0.0,
+   "balance": 57411.43
+  },
+  {
+   "date": "2025-06-14",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 8628.46,
+   "balance": 66039.89
+  },
+  {
+   "date": "2025-06-15",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 15243.17,
+   "balance": 81283.06
+  },
+  {
+   "date": "2025-06-16",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 20238.04,
+   "balance": 101521.1
+  },
+  {
+   "date": "2025-06-17",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 2912.56,
+   "credit": 0.0,
+   "balance": 98608.54
+  },
+  {
+   "date": "2025-06-18",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4 -family support",
+   "debit": 2935.3,
+   "credit": 0.0,
+   "balance": 95673.24
+  },
+  {
+   "date": "2025-06-18",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT L",
+   "debit": 59.43,
+   "credit": 0.0,
+   "balance": 95613.81
+  },
+  {
+   "date": "2025-06-19",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 4837.19,
+   "credit": 0.0,
+   "balance": 90776.62
+  },
+  {
+   "date": "2025-06-19",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 14632.3,
+   "balance": 105408.92
+  },
+  {
+   "date": "2025-06-20",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 243.13,
+   "credit": 0.0,
+   "balance": 105165.79
+  },
+  {
+   "date": "2025-06-20",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 2745.34,
+   "credit": 0.0,
+   "balance": 102420.45
+  },
+  {
+   "date": "2025-06-21",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES  LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 19942.33,
+   "balance": 122362.78
+  },
+  {
+   "date": "2025-06-22",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES  LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 4228.38,
+   "balance": 126591.16
+  },
+  {
+   "date": "2025-06-23",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 3906.81,
+   "credit": 0.0,
+   "balance": 122684.35
+  },
+  {
+   "date": "2025-06-23",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT L",
+   "debit": 3004.14,
+   "credit": 0.0,
+   "balance": 119680.21
+  },
+  {
+   "date": "2025-06-23",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 2350.01,
+   "credit": 0.0,
+   "balance": 117330.2
+  },
+  {
+   "date": "2025-06-25",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 24419.62,
+   "balance": 141749.82
+  },
+  {
+   "date": "2025-06-28",
+   "description": "ATM WDL ATM CASH 4521 PARK STREET KOLK",
+   "debit": 260.19,
+   "credit": 0.0,
+   "balance": 141489.63
+  },
+  {
+   "date": "2025-06-29",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 16970.49,
+   "balance": 158460.12
+  }
+ ]
+}

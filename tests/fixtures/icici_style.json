@@ -1,0 +1,286 @@
+{
+ "meta": {
+  "bankName": "ICICI Bank",
+  "accountHolder": "ANKITA SEN",
+  "accountNumber": "XXXXXXXX4321",
+  "periodStart": "2025-08-01",
+  "periodEnd": "2025-08-31",
+  "openingBalance": 8000.0,
+  "closingBalance": null
+ },
+ "txns": [
+  {
+   "date": "2025-08-02",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 3304.05,
+   "balance": 11304.05
+  },
+  {
+   "date": "2025-08-02",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 5457.47,
+   "credit": 0.0,
+   "balance": 5846.58
+  },
+  {
+   "date": "2025-08-03",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/rent share",
+   "debit": 0.0,
+   "credit": 4834.02,
+   "balance": 10680.6
+  },
+  {
+   "date": "2025-08-03",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 20919.71,
+   "balance": 31600.31
+  },
+  {
+   "date": "2025-08-04",
+   "description": "ATM WDL ATM CASH 4521 PARK STREET KOLKATA",
+   "debit": 1429.94,
+   "credit": 0.0,
+   "balance": 30170.37
+  },
+  {
+   "date": "2025-08-04",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES PVT LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 4027.03,
+   "balance": 34197.4
+  },
+  {
+   "date": "2025-08-04",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 4950.24,
+   "credit": 0.0,
+   "balance": 29247.16
+  },
+  {
+   "date": "2025-08-05",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 4299.07,
+   "credit": 0.0,
+   "balance": 24948.09
+  },
+  {
+   "date": "2025-08-05",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 4382.35,
+   "credit": 0.0,
+   "balance": 20565.74
+  },
+  {
+   "date": "2025-08-07",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES PVT LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 945.37,
+   "balance": 21511.11
+  },
+  {
+   "date": "2025-08-08",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 4684.89,
+   "credit": 0.0,
+   "balance": 16826.22
+  },
+  {
+   "date": "2025-08-09",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 20845.25,
+   "balance": 37671.47
+  },
+  {
+   "date": "2025-08-10",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 3526.3,
+   "credit": 0.0,
+   "balance": 34145.17
+  },
+  {
+   "date": "2025-08-10",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 5145.58,
+   "credit": 0.0,
+   "balance": 28999.59
+  },
+  {
+   "date": "2025-08-11",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES PVT LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 17859.73,
+   "balance": 46859.32
+  },
+  {
+   "date": "2025-08-11",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 790.39,
+   "credit": 0.0,
+   "balance": 46068.93
+  },
+  {
+   "date": "2025-08-12",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES PVT LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 10291.02,
+   "balance": 56359.95
+  },
+  {
+   "date": "2025-08-13",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 4624.31,
+   "credit": 0.0,
+   "balance": 51735.64
+  },
+  {
+   "date": "2025-08-15",
+   "description": "UPI/DR/512345678901/SWIGGY /YESB/swiggy@yesbank/Payment",
+   "debit": 2297.94,
+   "credit": 0.0,
+   "balance": 49437.7
+  },
+  {
+   "date": "2025-08-15",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 22028.59,
+   "balance": 71466.29
+  },
+  {
+   "date": "2025-08-16",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/rent share",
+   "debit": 0.0,
+   "credit": 24962.8,
+   "balance": 96429.09
+  },
+  {
+   "date": "2025-08-16",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES PVT LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 2747.58,
+   "balance": 99176.67
+  },
+  {
+   "date": "2025-08-18",
+   "description": "ACH D- TP ACH LIC OF INDIA-1234567",
+   "debit": 3682.28,
+   "credit": 0.0,
+   "balance": 95494.39
+  },
+  {
+   "date": "2025-08-19",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 5754.02,
+   "credit": 0.0,
+   "balance": 89740.37
+  },
+  {
+   "date": "2025-08-20",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 9685.51,
+   "balance": 99425.88
+  },
+  {
+   "date": "2025-08-21",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/rent share",
+   "debit": 0.0,
+   "credit": 23414.08,
+   "balance": 122839.96
+  },
+  {
+   "date": "2025-08-21",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 5925.36,
+   "credit": 0.0,
+   "balance": 116914.6
+  },
+  {
+   "date": "2025-08-21",
+   "description": "IMPS-523498761234-MOTHER-SBIN-XXXXXXX4321 -family support",
+   "debit": 3714.0,
+   "credit": 0.0,
+   "balance": 113200.6
+  },
+  {
+   "date": "2025-08-23",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 2824.19,
+   "credit": 0.0,
+   "balance": 110376.41
+  },
+  {
+   "date": "2025-08-23",
+   "description": "ELECTRICITY BILL CESC 1100223344",
+   "debit": 181.99,
+   "credit": 0.0,
+   "balance": 110194.42
+  },
+  {
+   "date": "2025-08-23",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 1544.18,
+   "credit": 0.0,
+   "balance": 108650.24
+  },
+  {
+   "date": "2025-08-24",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 1105.66,
+   "credit": 0.0,
+   "balance": 107544.58
+  },
+  {
+   "date": "2025-08-24",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 5070.85,
+   "credit": 0.0,
+   "balance": 102473.73
+  },
+  {
+   "date": "2025-08-25",
+   "description": "NEFT CR-HDFC0000123-ACME TECHNOLOGIES PVT LTD-SALARY JUN",
+   "debit": 0.0,
+   "credit": 19318.22,
+   "balance": 121791.95
+  },
+  {
+   "date": "2025-08-26",
+   "description": "INTEREST CREDITED",
+   "debit": 0.0,
+   "credit": 5602.32,
+   "balance": 127394.27
+  },
+  {
+   "date": "2025-08-28",
+   "description": "ATM WDL ATM CASH 4521 PARK STREET KOLKATA",
+   "debit": 4084.48,
+   "credit": 0.0,
+   "balance": 123309.79
+  },
+  {
+   "date": "2025-08-29",
+   "description": "POS 4321XXXXXXXX9876 BIG BAZAAR SALT LAKE",
+   "debit": 5697.44,
+   "credit": 0.0,
+   "balance": 117612.35
+  },
+  {
+   "date": "2025-08-29",
+   "description": "ATM WDL ATM CASH 4521 PARK STREET KOLKATA",
+   "debit": 525.69,
+   "credit": 0.0,
+   "balance": 117086.66
+  },
+  {
+   "date": "2025-08-30",
+   "description": "UPI/CR/523456789012/RAHUL DAS/SBIN/rent share",
+   "debit": 0.0,
+   "credit": 19685.82,
+   "balance": 136772.48
+  }
+ ]
+}

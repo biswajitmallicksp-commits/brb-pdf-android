@@ -13,6 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Test statement parser and ledger
+        working-directory: tests
+        run: |
+          npm ci
+          npm test
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -24,10 +34,10 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Test and build APK
+      - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon testReleaseUnitTest assembleRelease
+          ./gradlew --no-daemon assembleRelease
           cp app/build/outputs/apk/release/app-release.apk BRB-Statement-Analyzer.apk
 
       - uses: actions/upload-artifact@v4
@@ -38,12 +48,12 @@ jobs:
       - name: Publish APK as a GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Statement Analyzer v1.0.${{ github.run_number }}
+          tag_name: v2.0.${{ github.run_number }}
+          name: Statement Analyzer v2.0.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           make_latest: true
           files: BRB-Statement-Analyzer.apk
           body: |
-            Android APK built from ${{ github.ref_name }} @ ${{ github.sha }}.
+            Offline app (no API, no internet needed). Built from ${{ github.ref_name }} @ ${{ github.sha }}.
             Open this page on your phone, tap **BRB-Statement-Analyzer.apk**, and install it
             (allow "Install unknown apps" for your browser when asked).
