@@ -433,7 +433,7 @@
   }
 
   async function readPdf(name, bytes) {
-    const task = pdfjsLib.getDocument({ data: bytes, isEvalSupported: false });
+    const task = pdfjsLib.getDocument({ data: window.PdfEditCore.copyBytes(bytes), isEvalSupported: false });
     let skipped = false;
     task.onPassword = async (update, reason) => {
       const pw = await askPassword(name, reason === pdfjsLib.PasswordResponses.INCORRECT_PASSWORD);
@@ -462,7 +462,7 @@
     state.busy = true;
     setStatus(`<div class="busy"><span class="spinner"></span><span>Reading <b>${esc(f.name)}</b>…${state.queue.length ? ` (${state.queue.length} more waiting)` : ""}</span></div>`);
     try {
-      const bytes = f.bytes || new Uint8Array(await f.arrayBuffer());
+      const bytes = await window.PdfEditCore.fileBytes(f);
       const parsed = await readPdf(f.name, bytes);
       state.busy = false;
       if (!parsed) { toast(`Skipped ${f.name}`); return nextInQueue(); }
@@ -472,7 +472,7 @@
       $("#review-area").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) {
       state.busy = false;
-      setStatus(`Couldn't read <b>${esc(f.name)}</b>: ${esc(e && e.message ? e.message : e)}. Check that it is a text PDF downloaded from net banking, not a photo or scan.`, "err");
+      setStatus(`Couldn't read <b>${esc(f.name)}</b>: ${esc(e && e.message ? (e.name && e.name !== "Error" ? e.name + ": " : "") + e.message : e)}. Check that it is a text PDF downloaded from net banking, not a photo or scan.`, "err");
       setTimeout(nextInQueue, 50);
     }
   }
@@ -714,6 +714,15 @@
     };
   }
 
+  // Show unexpected errors on screen (there is no developer console in the Android app).
+  const showError = (e) => {
+    const msg = e && e.message ? (e.name && e.name !== "Error" ? e.name + ": " : "") + e.message : String(e);
+    if (/ResizeObserver loop|RenderingCancelled/i.test(msg)) return;
+    setStatus(`Something went wrong: ${esc(msg)}`, "err");
+  };
+  window.addEventListener("error", (ev) => showError(ev.error || ev.message));
+  window.addEventListener("unhandledrejection", (ev) => showError(ev.reason));
+
   // ------------------------------------------------------------ app modes
   function setMode(m) {
     state.mode = m;
@@ -753,7 +762,7 @@
       saveBinary,
       confirm: confirmBox,
       busy: (html, kind) => setStatus(html && kind ? html : html ? `<div class="busy"><span class="spinner"></span><span>${html}</span></div>` : "", kind),
-      analyze: (name, bytes) => { setMode("statements"); importFiles([{ name, bytes: bytes.slice() }]); },
+      analyze: (name, bytes) => { setMode("statements"); importFiles([{ name, bytes }]); },
     });
     idb = await openDb();
     await reload();

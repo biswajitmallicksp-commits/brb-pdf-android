@@ -48,9 +48,11 @@
     renderToken: 0,
   };
 
+  const errorText = (e) => (e && e.message ? (e.name && e.name !== "Error" ? e.name + ": " : "") + e.message : String(e));
+
   // ------------------------------------------------------------ loading
   async function loadSource(name, bytes) {
-    const task = pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false });
+    const task = pdfjsLib.getDocument({ data: C.copyBytes(bytes), isEvalSupported: false });
     let skipped = false;
     task.onPassword = async (update, reason) => {
       const pw = await E.deps.askPassword(name, reason === pdfjsLib.PasswordResponses.INCORRECT_PASSWORD);
@@ -82,7 +84,7 @@
     const f = files[0];
     E.deps.busy(`Opening <b>${esc(f.name)}</b>…`);
     try {
-      const bytes = f.bytes || new Uint8Array(await f.arrayBuffer());
+      const bytes = await C.fileBytes(f);
       const src = await loadSource(f.name, bytes);
       if (!src) { E.deps.busy(""); return; }
       closeDoc(true);
@@ -93,14 +95,14 @@
       render();
       if (files.length > 1) await addPdfPages(files.slice(1), true);
     } catch (e) {
-      E.deps.busy(`Couldn't open <b>${esc(f.name)}</b>: ${esc(e && e.message ? e.message : e)}`, "err");
+      E.deps.busy(`Couldn't open <b>${esc(f.name)}</b>: ${esc(errorText(e))}`, "err");
     }
   }
 
   async function addPdfPages(files, quiet) {
     for (const f of files) {
       try {
-        const bytes = f.bytes || new Uint8Array(await f.arrayBuffer());
+        const bytes = await C.fileBytes(f);
         const src = await loadSource(f.name, bytes);
         if (!src) continue;
         pushHistory();
@@ -108,7 +110,7 @@
         for (let i = 0; i < src.pdf.numPages; i++) E.pages.push({ src: n, index: i, rotate: 0, annots: [] });
         if (!quiet) E.deps.toast(`Added ${src.pdf.numPages} page(s) from ${f.name}`);
       } catch (e) {
-        E.deps.toast(`Couldn't add ${f.name}: ${e.message}`);
+        E.deps.toast(`Couldn't add ${f.name}: ${errorText(e)}`);
       }
     }
     render();
@@ -875,7 +877,7 @@
         E.deps.toast(`Saved. Page${rasterized.length > 1 ? "s" : ""} ${rasterized.join(", ")} came from a protected PDF and were saved as images.`);
       }
     } catch (e) {
-      E.deps.busy(`Couldn't save: ${esc(e && e.message ? e.message : e)}`, "err");
+      E.deps.busy(`Couldn't save: ${esc(errorText(e))}`, "err");
     }
   }
 

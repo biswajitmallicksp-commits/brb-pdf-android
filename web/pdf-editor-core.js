@@ -86,6 +86,30 @@
     return out;
   }
 
+  /**
+   * A private copy of PDF bytes. pdf.js takes ownership of (detaches) the buffer it is given,
+   * so the app never hands it bytes it still needs.
+   */
+  function copyBytes(b) {
+    const src = b instanceof Uint8Array ? b : new Uint8Array(b);
+    if (!src.byteLength) throw new Error("The file arrived empty. Please open it again.");
+    const out = new Uint8Array(src.byteLength);
+    out.set(src);
+    return out;
+  }
+
+  /** Bytes of a picked File, or of { name, bytes } from the Android app. Works on older WebViews too. */
+  async function fileBytes(f) {
+    if (f.bytes) return copyBytes(f.bytes);
+    if (typeof f.arrayBuffer === "function") return new Uint8Array(await f.arrayBuffer());
+    return new Uint8Array(await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(r.error || new Error("Could not read the file"));
+      r.readAsArrayBuffer(f);
+    }));
+  }
+
   async function bytesOf(maybePromise) {
     const v = await maybePromise;
     return v instanceof Uint8Array ? v : new Uint8Array(v);
@@ -177,5 +201,5 @@
     return { bytes, rasterized };
   }
 
-  return { viewport, buildPdf, encodable, norm, CSS_FONTS };
+  return { viewport, buildPdf, encodable, norm, copyBytes, fileBytes, CSS_FONTS };
 });
