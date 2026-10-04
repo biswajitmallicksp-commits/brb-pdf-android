@@ -1,0 +1,62 @@
+# Builds the BRB PDF app (APK) on GitHub's computers - no PC needed.
+# Each push to this branch makes a new release "BRB PDF v1.0.N" with BRB-PDF.apk attached.
+name: Build BRB PDF APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Get OCR language files (English, Bengali, Hindi)
+        run: |
+          mkdir -p app/src/main/assets/tessdata
+          cd app/src/main/assets/tessdata
+          for l in eng ben hin; do
+            if [ ! -s "$l.traineddata" ]; then
+              curl -fL --retry 3 -o "$l.traineddata" "https://github.com/tesseract-ocr/tessdata_best/raw/main/$l.traineddata"
+            fi
+          done
+          ls -l
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk BRB-PDF.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BRB-PDF-apk
+          path: BRB-PDF.apk
+
+      - name: Publish APK as a GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: brb-pdf-v1.0.${{ github.run_number }}
+          name: BRB PDF v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: false
+          files: BRB-PDF.apk
+          body: |
+            BRB PDF - offline PDF reader, OCR (English/Bengali/Hindi), page tools, annotate & sign.
+            Open this page on your phone or tablet, tap **BRB-PDF.apk**, and install it
+            (allow "Install unknown apps" for your browser when asked).

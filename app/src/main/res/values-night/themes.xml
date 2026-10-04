@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="AppTheme" parent="android:Theme.Material">
+        <item name="android:colorPrimary">#23262B</item>
+        <item name="android:colorPrimaryDark">#15171A</item>
+        <item name="android:colorAccent">#5B8FF0</item>
+        <item name="android:windowBackground">#1B1D21</item>
+        <!-- Android 15+: keep the classic layout (bars do not cover the page) -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
+    </style>
+</resources>

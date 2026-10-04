@@ -1,0 +1,6 @@
+Copy the OCR language files here before building:
+  eng.traineddata
+  ben.traineddata
+  hin.traineddata
+They are in the "tessdata" folder of the Windows BRB PDF / PDFWorkbench program.
+See README.md, step 4.
