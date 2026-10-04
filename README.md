@@ -97,6 +97,7 @@ If another app is already the default:
 | Zoom | Pinch, or double-tap |
 | Select a word | Long-press it. Keep the finger down and move to select more |
 | Search | 🔍 at the top. Use `<` and `>` to step through the results |
+| **Delete or rewrite a line / word** | Tap **Edit text** at the top. A panel opens at the side (at the bottom when the tablet is upright). Tap a line on the page to find it in the panel. Change the words, or tap **✕** to delete the line, then tap **Apply changes**. Save a copy to keep the result |
 | Highlight / underline / strike | **Annotate** (pencil icon) → choose the tool → drag over the words |
 | Add a note / text / stamp / picture | **Annotate** → choose it → tap where it should go |
 | Sign | **Annotate → Sign** → draw your signature → tap where it goes |
@@ -111,6 +112,7 @@ If another app is already the default:
 | Password | ⋮ → **Password protect…** saves a protected copy |
 
 ### Important notes
+- **Edit text:** the changed words are really removed from the PDF and new words are written in the same place, size and colour, in the closest standard font (Helvetica, Times or Courier), so the letters can look slightly different from the original. Scanned pages are pictures and have no editable text.
 - **Signatures:** **Sign** places a *picture* of your signature. It is **not** a digital (cryptographic) signature and does not by itself make a document legally signed.
 - **Redaction:** a black rectangle drawn with the Rectangle tool **hides nothing**, because the text under it can still be copied. Only **Apply redactions** really removes the content.
 - **The original is safe:** the app works on a private copy. Your file changes only if you choose **Save (replace original)** and confirm.

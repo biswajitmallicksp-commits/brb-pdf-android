@@ -67,6 +67,9 @@ class ViewerActivity : Activity(), PageView.Listener {
     private lateinit var annotTitle: TextView
     private lateinit var inkBar: LinearLayout
     private lateinit var loading: TextView
+    private lateinit var editPanel: EditTextPanel
+    private lateinit var middle: LinearLayout
+    private lateinit var frame: FrameLayout
 
     private val toolChips = HashMap<PageView.Tool, TextView>()
     private var placeChip: TextView? = null
@@ -160,7 +163,7 @@ class ViewerActivity : Activity(), PageView.Listener {
             orientation = LinearLayout.VERTICAL
             addView(selBar); addView(annotBar); addView(inkBar); addView(toolScroll)
         }
-        val frame = FrameLayout(this).apply {
+        frame = FrameLayout(this).apply {
             addView(loading, FrameLayout.LayoutParams(-1, -1))
             addView(pv, FrameLayout.LayoutParams(-1, -1))
             addView(hint, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
@@ -168,16 +171,52 @@ class ViewerActivity : Activity(), PageView.Listener {
                 bottomMargin = dp(14)
             })
         }
+        editPanel = EditTextPanel(this, pv, { engine },
+            { label, block, after -> edit(label, block = block, after = after) },
+            { refreshTitle() })
+        middle = LinearLayout(this).apply {
+            addView(frame)
+            addView(editPanel)
+        }
+        layoutPanel()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(searchBar, lp())
-            addView(frame, lp(-1, 0, 1f))
+            addView(middle, lp(-1, 0, 1f))
             addView(bottom, lp())
         }
         setContentView(root)
         pv.visibility = View.INVISIBLE
         pageLabel.visibility = View.GONE
         pv.nightMode = Store.get(this, "night", "0") == "1"
+    }
+
+    /** Side panel on wide screens (tablet / landscape), bottom half on tall screens. */
+    private fun layoutPanel() {
+        val c = resources.configuration
+        val wide = c.screenWidthDp > c.screenHeightDp
+        middle.orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        if (wide) {
+            frame.layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
+            editPanel.layoutParams = LinearLayout.LayoutParams(maxOf(dp(320), (resources.displayMetrics.widthPixels * 0.4f).toInt()), -1)
+        } else {
+            frame.layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
+            editPanel.layoutParams = LinearLayout.LayoutParams(-1, (resources.displayMetrics.heightPixels * 0.45f).toInt())
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        layoutPanel()
+    }
+
+    private fun toggleTextEdit() {
+        val eng = engine ?: return
+        if (editPanel.isOpen) { editPanel.close(); return }
+        if (!eng.canModify) { info("Not allowed", "The owner of this PDF does not allow changing its text."); return }
+        if (annotating) toggleAnnotate(false)
+        clearSelection(); pv.selectedAnnot = null; hideBars()
+        editPanel.open(pv.currentPage)
     }
 
     private fun smallButton(text: String, action: () -> Unit) = TextView(this).apply {
@@ -207,6 +246,7 @@ class ViewerActivity : Activity(), PageView.Listener {
             toolRow.addView(c, lp(-2, -2).apply { marginEnd = dp(6) })
             return c
         }
+        add("Edit text") { toggleTextEdit() }
         undoChip = add("Undo") { undo() }
         redoChip = add("Redo") { redo() }
         for ((name, tool) in listOf("Select text" to PageView.Tool.SELECT, "Highlight" to PageView.Tool.HIGHLIGHT,
@@ -325,6 +365,7 @@ class ViewerActivity : Activity(), PageView.Listener {
     override fun onBackPressed() {
         when {
             searchBar.visibility == View.VISIBLE -> closeSearch()
+            editPanel.isOpen -> editPanel.close()
             pv.selectedAnnot != null -> onAnnotTapped(null)
             pv.selection != null -> clearSelection()
             pv.tool != PageView.Tool.PAN -> setTool(PageView.Tool.PAN)
@@ -365,7 +406,7 @@ class ViewerActivity : Activity(), PageView.Listener {
         const val SEARCH = 1; const val EDIT = 2; const val UNDO = 3; const val REDO = 4; const val PAGES = 5
         const val OCR = 6; const val COPY_TEXT = 7; const val SAVE_COPY = 8; const val SAVE_OVER = 9; const val SHARE = 10
         const val PRINT = 11; const val PASSWORD = 12; const val REDACT = 13; const val OUTLINE = 14; const val GOTO = 15
-        const val NIGHT = 16; const val INFO = 17; const val ZOOM_FIT = 18
+        const val NIGHT = 16; const val INFO = 17; const val ZOOM_FIT = 18; const val TEXTEDIT = 19
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -373,6 +414,7 @@ class ViewerActivity : Activity(), PageView.Listener {
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         menu.add(0, M.EDIT, 1, "Annotate").setIcon(android.R.drawable.ic_menu_edit)
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        menu.add(0, M.TEXTEDIT, 1, "Edit text").setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM or MenuItem.SHOW_AS_ACTION_WITH_TEXT)
         menu.add(0, M.UNDO, 2, "Undo")
         menu.add(0, M.REDO, 3, "Redo")
         menu.add(0, M.PAGES, 4, "Pages (rotate, delete, move, split...)")
@@ -401,6 +443,7 @@ class ViewerActivity : Activity(), PageView.Listener {
             menu.findItem(M.REDO).apply { isEnabled = eng.redoLabel != null; title = eng.redoLabel?.let { "Redo: $it" } ?: "Redo" }
             menu.findItem(M.EDIT).isEnabled = eng.canAnnotate
             menu.findItem(M.OCR).isEnabled = eng.canModify
+            menu.findItem(M.TEXTEDIT).isEnabled = eng.canModify
             menu.findItem(M.PRINT).isEnabled = eng.canPrint
             menu.findItem(M.COPY_TEXT).isEnabled = eng.canCopy
             menu.findItem(M.PASSWORD).isEnabled = eng.canModify
@@ -415,6 +458,7 @@ class ViewerActivity : Activity(), PageView.Listener {
         when (item.itemId) {
             M.SEARCH -> openSearch()
             M.EDIT -> toggleAnnotate(!annotating)
+            M.TEXTEDIT -> toggleTextEdit()
             M.UNDO -> undo()
             M.REDO -> redo()
             M.PAGES -> engine?.let {
@@ -463,6 +507,7 @@ class ViewerActivity : Activity(), PageView.Listener {
         eng.undo { label ->
             if (label == null) { toast("Nothing to undo."); return@undo }
             pv.refresh(true); shownRevision = eng.revision; refreshTitle()
+            editPanel.reload()
             toast("Undone: $label")
         }
     }
@@ -473,6 +518,7 @@ class ViewerActivity : Activity(), PageView.Listener {
         eng.redo { label ->
             if (label == null) { toast("Nothing to redo."); return@redo }
             pv.refresh(true); shownRevision = eng.revision; refreshTitle()
+            editPanel.reload()
             toast("Redone: $label")
         }
     }
@@ -480,6 +526,7 @@ class ViewerActivity : Activity(), PageView.Listener {
     private fun toggleAnnotate(on: Boolean) {
         val eng = engine ?: return
         if (on && !eng.canAnnotate) { info("Not allowed", "The owner of this PDF does not allow adding comments."); return }
+        if (on && editPanel.isOpen) { editPanel.close(); if (editPanel.isOpen) return }
         annotating = on
         toolScroll.visibility = if (on) View.VISIBLE else View.GONE
         if (!on) setTool(PageView.Tool.PAN)
@@ -525,10 +572,11 @@ class ViewerActivity : Activity(), PageView.Listener {
     override fun onPageChanged(page: Int) {
         val n = engine?.pageCount ?: 0
         pageLabel.text = "${page + 1} / $n"
+        editPanel.onPageChanged(page)
     }
 
     override fun onTapEmpty() {
-        if (annotating) return
+        if (annotating || editPanel.isOpen) return
         if (actionBar?.isShowing == true) actionBar?.hide() else actionBar?.show()
     }
 
@@ -547,6 +595,7 @@ class ViewerActivity : Activity(), PageView.Listener {
     }
 
     override fun onPlace(page: Int, at: Point) {
+        if (editPanel.isOpen) { editPanel.pickAt(page, at); return }
         val action = placeAction ?: return
         setTool(PageView.Tool.PAN)
         action(page, at)

@@ -231,6 +231,9 @@ class PdfEngine private constructor(
 
     fun pageText(i: Int): String = call { stext(i).asText() ?: "" }
 
+    /** Editable pieces of text on page i (lines / table cells). */
+    fun textSegments(i: Int): List<TextEdit.Seg> = call { TextEdit.segments(page(i), i) }
+
     /** Link under a point: page number (internal link) or web/e-mail address (external). */
     data class LinkHit(val page: Int, val uri: String?)
 

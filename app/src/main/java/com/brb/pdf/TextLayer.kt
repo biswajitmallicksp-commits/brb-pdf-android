@@ -77,7 +77,13 @@ object TextLayer {
         sb.append("ET\n")
         if (words == 0) return 0
 
-        // ---- keep the original drawing state intact: q <original> Q <ours>
+        appendContent(pdf, pageObj, sb.toString())
+        return words
+    }
+
+    /** Add drawing commands on top of a page, keeping the original drawing state intact:
+     *  q <original content> Q <ours>. */
+    fun appendContent(pdf: PDFDocument, pageObj: PDFObject, ours: String) {
         val contents = pageObj.get("Contents")
         val arr = pdf.newArray()
         arr.push(pdf.addStream("q\n"))
@@ -89,9 +95,8 @@ object TextLayer {
                 arr.push(contents)
             }
         }
-        arr.push(pdf.addStream("Q\n$sb"))
+        arr.push(pdf.addStream("Q\n$ours"))
         pageObj.put("Contents", arr)
-        return words
     }
 
     /** Group words into visual rows (top to bottom), each row left to right. */
