@@ -1,0 +1,9 @@
+.venv/
+build/
+dist/
+__pycache__/
+*.pyc
+tests/samples/
+*.spec
+tessdata/*.traineddata
+output/

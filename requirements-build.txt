@@ -1,0 +1,3 @@
+# Extra tools needed only to build the .exe
+-r requirements.txt
+pyinstaller==6.22.3

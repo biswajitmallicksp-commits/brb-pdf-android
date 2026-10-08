@@ -1,0 +1,112 @@
+# Builds BRB PDF for Windows on GitHub's own Windows computer.
+# Result (on the Releases page): BRB-PDF-Setup-x.y.z.exe (installer) and BRB-PDF-Portable-x.y.z.zip.
+# The computers that use the program do NOT need Python - everything is inside.
+name: Build BRB PDF for Windows
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+
+      - name: Get OCR language files (English, Bengali, Hindi)
+        shell: bash
+        run: |
+          mkdir -p tessdata
+          for l in eng ben hin; do
+            if [ ! -s "tessdata/$l.traineddata" ]; then
+              curl -fL --retry 3 -o "tessdata/$l.traineddata" "https://github.com/tesseract-ocr/tessdata_best/raw/main/$l.traineddata"
+            fi
+          done
+          ls -l tessdata
+
+      - name: Version
+        id: ver
+        shell: bash
+        run: |
+          base=$(python -c "import re;print(re.search(r'APP_VERSION = \"([^\"]+)\"', open('app/config.py').read()).group(1))")
+          echo "version=$base.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Tests
+        run: |
+          python -m unittest discover -s tests -v
+          python tests\test_text_panel_ui.py
+          python tests\test_edit_ui.py
+
+      - name: Build the program (PyInstaller)
+        run: |
+          python -m PyInstaller --noconfirm --clean --windowed `
+            --name PDFWorkbench `
+            --icon assets\app.ico `
+            --add-data "assets;assets" `
+            --exclude-module tkinter `
+            --exclude-module PySide6.QtWebEngineCore `
+            --exclude-module PySide6.QtWebEngineWidgets `
+            --exclude-module PySide6.Qt3DCore `
+            --exclude-module PySide6.QtQuick `
+            --exclude-module PySide6.QtQml `
+            --exclude-module PySide6.QtMultimedia `
+            main.py
+          xcopy /e /i /y /q tessdata dist\PDFWorkbench\tessdata
+          copy /y README.md dist\PDFWorkbench\
+          copy /y THIRD_PARTY_LICENSES.md dist\PDFWorkbench\
+
+      - name: Check the program starts (no Python on the path)
+        shell: pwsh
+        run: |
+          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'Python' }) -join ';'
+          $q = Start-Process -FilePath "dist\PDFWorkbench\PDFWorkbench.exe" -PassThru
+          Start-Sleep -Seconds 15
+          if ($q.HasExited) { throw "PDFWorkbench.exe closed by itself (exit code $($q.ExitCode))" }
+          Stop-Process -Id $q.Id -Force
+          Write-Host "PDFWorkbench.exe started and kept running."
+
+      - name: Make the installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc "/DAppVersion=${{ steps.ver.outputs.version }}" installer\BRB-PDF.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          Compress-Archive -Path dist\PDFWorkbench -DestinationPath "output\BRB-PDF-Portable-${{ steps.ver.outputs.version }}.zip"
+          Get-ChildItem output
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BRB-PDF-Windows
+          path: output/*
+
+      - name: Publish on the Releases page
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: win-v${{ steps.ver.outputs.version }}
+          name: BRB PDF for Windows ${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          make_latest: false
+          files: output/*
+          body: |
+            BRB PDF for Windows 10/11 (64-bit). **Python is not needed.**
+            - **BRB-PDF-Setup-${{ steps.ver.outputs.version }}.exe** - installer: download, double-click, Next, Install. No administrator rights needed.
+            - **BRB-PDF-Portable-${{ steps.ver.outputs.version }}.zip** - no installation: unzip and double-click PDFWorkbench.exe (good for a USB stick).
+            Windows may say "Windows protected your PC" because the program is not signed: click **More info -> Run anyway**.
