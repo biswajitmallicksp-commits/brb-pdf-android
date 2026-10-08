@@ -55,6 +55,7 @@ jobs:
           python tests\test_edit_ui.py
 
       - name: Build the program (PyInstaller)
+        shell: pwsh
         run: |
           python -m PyInstaller --noconfirm --clean --windowed `
             --name PDFWorkbench `
@@ -67,10 +68,14 @@ jobs:
             --exclude-module PySide6.QtQuick `
             --exclude-module PySide6.QtQml `
             --exclude-module PySide6.QtMultimedia `
-            main.py
-          xcopy /e /i /y /q tessdata dist\PDFWorkbench\tessdata
-          copy /y README.md dist\PDFWorkbench\
-          copy /y THIRD_PARTY_LICENSES.md dist\PDFWorkbench\
+            main.py *> pyinstaller.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content pyinstaller.log -Tail 25 | ForEach-Object { Write-Host "::error::$_" }
+            throw "PyInstaller failed"
+          }
+          Copy-Item -Recurse tessdata dist\PDFWorkbench\tessdata
+          Copy-Item README.md, THIRD_PARTY_LICENSES.md -Destination dist\PDFWorkbench\
+          Get-ChildItem dist\PDFWorkbench | Select-Object -First 20
 
       - name: Check the program starts (no Python on the path)
         shell: pwsh
