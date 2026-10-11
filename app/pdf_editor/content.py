@@ -16,6 +16,8 @@ reused (most PDFs embed only the characters they use).
 """
 from __future__ import annotations
 
+import re
+
 import datetime as _dt
 import html
 import logging
@@ -155,7 +157,28 @@ def _add_plain_text(page: fitz.Page, rect: fitz.Rect, text: str, style: TextStyl
     spare = page.insert_textbox(box, text, **kwargs)
     if spare < 0:
         raise PageOpError("The text does not fit in the box. Draw a larger box or use a smaller font size.")
+    if font_file:
+        _fix_space_mapping(page, font_name)
     return box
+
+
+def _fix_space_mapping(page: fitz.Page, font_name: str) -> None:
+    """Fonts such as Arial draw the space and the no-break space with the same glyph, so the
+    generated ToUnicode map can say 'no-break space' for every space. Copying, searching and
+    other PDF readers then see odd spaces. Make that glyph mean a normal space."""
+    doc = page.parent
+    for xref, *_rest, name, _enc in page.get_fonts(full=False):
+        if name != font_name:
+            continue
+        kind, val = doc.xref_get_key(xref, "ToUnicode")
+        if kind != "xref":
+            continue
+        tu = int(val.split()[0])
+        cmap = doc.xref_stream(tu).decode("latin-1")
+        if "<00A0>" not in cmap.upper() or "<0020>" in cmap.upper():
+            continue
+        fixed = re.sub(r"<00[aA]0>", "<0020>", cmap)
+        doc.update_stream(tu, fixed.encode("latin-1"))
 
 
 def _rotated_htmlbox(page: fitz.Page, view_box: fitz.Rect, body: str, kwargs: dict):
