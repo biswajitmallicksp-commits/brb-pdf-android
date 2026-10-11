@@ -163,10 +163,12 @@ def _add_plain_text(page: fitz.Page, rect: fitz.Rect, text: str, style: TextStyl
 
 
 def _fix_space_mapping(page: fitz.Page, font_name: str) -> None:
-    """Fonts such as Arial draw the space and the no-break space with the same glyph, so the
-    generated ToUnicode map can say 'no-break space' for every space. Copying, searching and
-    other PDF readers then see odd spaces. Make that glyph mean a normal space."""
+    """Fonts such as Arial draw the space and the no-break space (and '-' and the soft hyphen)
+    with the same glyph, so the generated ToUnicode map can say 'no-break space' / 'soft hyphen'
+    for every space / hyphen. Copying, searching and other PDF readers then see odd characters.
+    Make those glyphs mean the normal character."""
     doc = page.parent
+    swaps = (("00A0", "0020"), ("00AD", "002D"), ("2010", "002D"), ("2011", "002D"))
     for xref, *_rest, name, _enc in page.get_fonts(full=False):
         if name != font_name:
             continue
@@ -175,10 +177,13 @@ def _fix_space_mapping(page: fitz.Page, font_name: str) -> None:
             continue
         tu = int(val.split()[0])
         cmap = doc.xref_stream(tu).decode("latin-1")
-        if "<00A0>" not in cmap.upper() or "<0020>" in cmap.upper():
-            continue
-        fixed = re.sub(r"<00[aA]0>", "<0020>", cmap)
-        doc.update_stream(tu, fixed.encode("latin-1"))
+        up = cmap.upper()
+        fixed = cmap
+        for odd, normal in swaps:
+            if f"<{odd}>" in up and f"<{normal}>" not in up:
+                fixed = re.sub(f"<{odd}>", f"<{normal}>", fixed, flags=re.I)
+        if fixed != cmap:
+            doc.update_stream(tu, fixed.encode("latin-1"))
 
 
 def _rotated_htmlbox(page: fitz.Page, view_box: fitz.Rect, body: str, kwargs: dict):
