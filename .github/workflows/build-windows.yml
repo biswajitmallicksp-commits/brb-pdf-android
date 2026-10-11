@@ -50,11 +50,18 @@ jobs:
           $ErrorActionPreference = 'Stop'
           try {
             New-Item -ItemType Directory -Force ai\llama, ai\models | Out-Null
-            $rel = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } https://api.github.com/repos/ggml-org/llama.cpp/releases/latest
-            Write-Host "::notice::llama.cpp $($rel.tag_name) assets: $(($rel.assets | ForEach-Object name | Where-Object { $_ -match 'win' }) -join ', ')"
-            $asset = $rel.assets | Where-Object { $_.name -match 'bin-win-cpu-x64\.zip$' } | Select-Object -First 1
-            if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match 'bin-win-avx2-x64\.zip$' } | Select-Object -First 1 }
-            if (-not $asset) { throw "No Windows CPU build found in llama.cpp release $($rel.tag_name)" }
+            $rels = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=40"
+            $rel = $null; $asset = $null
+            foreach ($r in $rels) {
+              if ($r.draft -or $r.prerelease) { continue }
+              $a = $r.assets | Where-Object { $_.name -match 'bin-win-cpu-x64\.zip$' } | Select-Object -First 1
+              if (-not $a) { $a = $r.assets | Where-Object { $_.name -match 'bin-win-avx2-x64\.zip$' } | Select-Object -First 1 }
+              if ($a) { $rel = $r; $asset = $a; break }
+            }
+            if (-not $asset) {
+              Write-Host "::notice::releases seen: $(($rels | Select-Object -First 5 | ForEach-Object { $_.tag_name + ' [' + (($_.assets | ForEach-Object name) -join ' ') + ']' }) -join ' | ')"
+              throw "No Windows CPU build found in the recent llama.cpp releases"
+            }
             Write-Host "::notice::llama.cpp $($rel.tag_name): $($asset.name)"
             Invoke-WebRequest $asset.browser_download_url -OutFile llama.zip
             Expand-Archive llama.zip -DestinationPath llama_tmp -Force
