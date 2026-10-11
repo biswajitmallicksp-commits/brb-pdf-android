@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 - Offline AI Assistant (2026-10-11)
+
+### Added
+- **AI Assistant** panel (Ctrl+Shift+I, toolbar button, new **AI** menu). Everything runs on this computer: a small language model (Qwen2.5 1.5B Instruct, Apache-2.0) is run by llama.cpp's `llama-server` on 127.0.0.1 only. No internet, no account, no document text leaves the PC.
+  - **Prompt box**: ask anything about the open PDF; answers mention the pages they come from and the page numbers are links.
+  - **Summarise** the whole document, the current page, a page range or a chapter (chapters come from the PDF's bookmarks) - Short / Medium / Detailed. Typed requests also work: "Summarise chapter 2 in short", "summary of pages 3 to 7 in Hindi". Long documents are read in parts and the notes combined.
+  - **Fill a Form from this PDF**: choose a form (fillable PDF or printed blanks such as "Name: ______", "PAN:"); values are found from "Label: value" lines and tables, known patterns (PAN, IFSC, GSTIN, e-mail, mobile, PIN, Aadhaar) and the local model. Every value is shown for checking/correction (with its source page) before a NEW filled copy is saved; the original form is never changed. Fields about someone else (Nominee, Guarantor, Father's ...) never receive the applicant's details, and model answers that cannot be found in the document are discarded.
+  - Stop button, Copy Answer, Save as Text.
+- **Quick mode** when no model is installed (Lite installer): key-sentence summaries, best-matching passages, rule-based form filling.
+- Windows build: full installer with the AI model (~1.2 GB) and a Lite installer (~80 MB); the model file can be replaced by any other GGUF chat model in `ai\models`.
+- Tests: `tests/test_ai.py`, `tests/test_ai_ui.py` (stand-in model server), `tests/test_ai_live.py` (real model, run on the build machine).
+
 ## 0.5.0 - Edit Text panel (2026-10-07)
 
 ### Added

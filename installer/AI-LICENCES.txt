@@ -1,0 +1,13 @@
+Offline AI components of BRB PDF
+================================
+llama.cpp (llama-server.exe and its DLLs)
+  Copyright (c) 2023-2026 The ggml authors. MIT License.
+  https://github.com/ggml-org/llama.cpp
+
+Qwen2.5-1.5B-Instruct (ai\models\qwen2.5-1.5b-instruct-q4_k_m.gguf)
+  Copyright (c) Alibaba Cloud. Apache License 2.0.
+  https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF
+
+Microsoft Visual C++ runtime DLLs: redistributed under the Microsoft Visual Studio licence terms.
+
+The model runs only on this computer (127.0.0.1). No document text is sent anywhere.

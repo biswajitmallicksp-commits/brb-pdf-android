@@ -7,3 +7,4 @@ tests/samples/
 *.spec
 tessdata/*.traineddata
 output/
+ai/

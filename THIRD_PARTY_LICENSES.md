@@ -34,3 +34,11 @@ project's page before distributing the program to other people.
 No Adobe code, SDKs, fonts, icons, names or other proprietary assets are included.
 All icons are original and drawn in code (`app/ui/icons.py`); the application icon
 (`assets/app.ico`) was generated for this project.
+
+## Offline AI (full installer only)
+
+| Component | Use | Licence |
+|---|---|---|
+| llama.cpp (`ai\llama\llama-server.exe` + DLLs) | runs the local language model | MIT |
+| Qwen2.5-1.5B-Instruct GGUF (`ai\models`) | the local language model | Apache-2.0 |
+| Microsoft Visual C++ runtime DLLs | needed by llama-server | Microsoft redistributable |

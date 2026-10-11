@@ -13,6 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 90
     env:
       QT_QPA_PLATFORM: offscreen
       PYTHONIOENCODING: utf-8
@@ -41,6 +42,35 @@ jobs:
           done
           ls -l tessdata
 
+      - name: Get the offline AI engine (llama.cpp) and model (Qwen2.5 1.5B Instruct)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force ai\llama, ai\models | Out-Null
+          $rel = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } https://api.github.com/repos/ggml-org/llama.cpp/releases/latest
+          $asset = $rel.assets | Where-Object { $_.name -match 'bin-win-cpu-x64\.zip$' } | Select-Object -First 1
+          if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match 'bin-win-avx2-x64\.zip$' } | Select-Object -First 1 }
+          if (-not $asset) { throw "No Windows CPU build found in llama.cpp release $($rel.tag_name)" }
+          Write-Host "::notice::llama.cpp $($rel.tag_name): $($asset.name)"
+          Invoke-WebRequest $asset.browser_download_url -OutFile llama.zip
+          Expand-Archive llama.zip -DestinationPath llama_tmp -Force
+          $server = Get-ChildItem llama_tmp -Recurse -Filter llama-server.exe | Select-Object -First 1
+          if (-not $server) { throw "llama-server.exe not in the zip" }
+          Copy-Item "$($server.DirectoryName)\*" ai\llama -Recurse -Force
+          Get-ChildItem ai\llama -Include *.exe -Recurse | Where-Object { $_.Name -ne 'llama-server.exe' } | Remove-Item
+          # the Microsoft C++ runtime, so llama-server runs on PCs that do not have it installed
+          foreach ($dll in 'msvcp140.dll','msvcp140_1.dll','msvcp140_2.dll','vcruntime140.dll','vcruntime140_1.dll','vcomp140.dll') {
+            if ((Test-Path "C:\Windows\System32\$dll") -and -not (Test-Path "ai\llama\$dll")) { Copy-Item "C:\Windows\System32\$dll" ai\llama }
+          }
+          Set-Content ai\llama\VERSION.txt "llama.cpp $($rel.tag_name) - $($asset.name) - MIT licence"
+          $model = "ai\models\qwen2.5-1.5b-instruct-q4_k_m.gguf"
+          Invoke-WebRequest "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf" -OutFile $model
+          $size = (Get-Item $model).Length
+          Write-Host "::notice::Model size $([math]::Round($size/1MB)) MB"
+          if ($size -lt 500MB) { throw "The model download looks incomplete" }
+          Get-ChildItem ai -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
+
       - name: Version
         id: ver
         shell: bash
@@ -53,9 +83,12 @@ jobs:
           python -m unittest discover -s tests -v
           python tests\test_text_panel_ui.py
           python tests\test_edit_ui.py
+          python tests\test_ai_ui.py
+
+      - name: Live test with the real local AI model
+        run: python tests\test_ai_live.py
 
       - name: Build the program (PyInstaller)
-        shell: pwsh
         run: |
           python -m PyInstaller --noconfirm --clean --windowed `
             --name PDFWorkbench `
@@ -68,14 +101,10 @@ jobs:
             --exclude-module PySide6.QtQuick `
             --exclude-module PySide6.QtQml `
             --exclude-module PySide6.QtMultimedia `
-            main.py *> pyinstaller.log
-          if ($LASTEXITCODE -ne 0) {
-            Get-Content pyinstaller.log -Tail 25 | ForEach-Object { Write-Host "::error::$_" }
-            throw "PyInstaller failed"
-          }
-          Copy-Item -Recurse tessdata dist\PDFWorkbench\tessdata
-          Copy-Item README.md, THIRD_PARTY_LICENSES.md -Destination dist\PDFWorkbench\
-          Get-ChildItem dist\PDFWorkbench | Select-Object -First 20
+            main.py
+          xcopy /e /i /y /q tessdata dist\PDFWorkbench\tessdata
+          copy /y README.md dist\PDFWorkbench\
+          copy /y THIRD_PARTY_LICENSES.md dist\PDFWorkbench\
 
       - name: Check the program starts (no Python on the path)
         shell: pwsh
@@ -87,15 +116,31 @@ jobs:
           Stop-Process -Id $q.Id -Force
           Write-Host "PDFWorkbench.exe started and kept running."
 
-      - name: Make the installer (Inno Setup)
+      - name: Check the AI engine starts from the program folder
+        shell: pwsh
+        run: |
+          Copy-Item -Recurse ai dist\PDFWorkbench\ai
+          $p = Start-Process -FilePath "dist\PDFWorkbench\ai\llama\llama-server.exe" -ArgumentList "--version" -PassThru -Wait -NoNewWindow -RedirectStandardOutput v.txt -RedirectStandardError v2.txt
+          Write-Host "::notice::llama-server --version -> exit $($p.ExitCode): $((Get-Content v.txt, v2.txt) -join ' ')"
+          if ($p.ExitCode -ne 0) { throw "llama-server.exe does not run" }
+          Remove-Item -Recurse -Force dist\PDFWorkbench\ai
+
+      - name: Make the installers (Inno Setup)
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; }
-          & $iscc "/DAppVersion=${{ steps.ver.outputs.version }}" installer\BRB-PDF.iss
-          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
-          Compress-Archive -Path dist\PDFWorkbench -DestinationPath "output\BRB-PDF-Portable-${{ steps.ver.outputs.version }}.zip"
-          Get-ChildItem output
+          $v = "${{ steps.ver.outputs.version }}"
+          # Lite: without the AI model (small download; AI features work in quick mode)
+          & $iscc "/DAppVersion=$v" "/DEdition=Lite" installer\BRB-PDF.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed (Lite)" }
+          Compress-Archive -Path dist\PDFWorkbench -DestinationPath "output\BRB-PDF-Portable-Lite-$v.zip"
+          # Full: with the offline AI model
+          Copy-Item -Recurse ai dist\PDFWorkbench\ai
+          Copy-Item installer\AI-LICENCES.txt dist\PDFWorkbench\ai\
+          & $iscc "/DAppVersion=$v" installer\BRB-PDF.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed (full)" }
+          Get-ChildItem output | ForEach-Object { Write-Host "::notice::$($_.Name) $([math]::Round($_.Length/1MB)) MB" }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -111,7 +156,8 @@ jobs:
           make_latest: false
           files: output/*
           body: |
-            BRB PDF for Windows 10/11 (64-bit). **Python is not needed.**
-            - **BRB-PDF-Setup-${{ steps.ver.outputs.version }}.exe** - installer: download, double-click, Next, Install. No administrator rights needed.
-            - **BRB-PDF-Portable-${{ steps.ver.outputs.version }}.zip** - no installation: unzip and double-click PDFWorkbench.exe (good for a USB stick).
+            BRB PDF for Windows 10/11 (64-bit). **Python is not needed. Works offline.**
+            - **BRB-PDF-Setup-${{ steps.ver.outputs.version }}.exe** - full installer WITH the offline AI Assistant (about 1.2 GB): download, double-click, Next, Install. No administrator rights needed.
+            - **BRB-PDF-Setup-Lite-${{ steps.ver.outputs.version }}.exe** - small installer without the AI model; the AI Assistant works in quick mode.
+            - **BRB-PDF-Portable-Lite-${{ steps.ver.outputs.version }}.zip** - no installation: unzip and double-click PDFWorkbench.exe.
             Windows may say "Windows protected your PC" because the program is not signed: click **More info -> Run anyway**.

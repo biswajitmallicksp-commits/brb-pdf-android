@@ -12,11 +12,29 @@ bank-statement analysis arrive next (see *Roadmap* below).
 
 - Every document is processed **on this computer only**.
 - The application makes **no network connections** while running. It has no accounts,
-  no registration, no analytics and no update checks.
+  no registration, no analytics and no update checks. (The AI Assistant talks only to the
+  model program it starts on this same computer, at address 127.0.0.1.)
 - Internet is needed **once**, only when `run.bat` or `build.bat` downloads the Python
   packages. The finished program in `dist\PDFWorkbench` never needs internet.
 - Settings, recent-file list and logs are stored in `%LOCALAPPDATA%\PDFWorkbench\`.
   Logs contain file paths and errors, never document text.
+
+
+## AI Assistant (offline)
+
+Open it with **AI Assistant** on the second toolbar row, the **AI** menu, or **Ctrl+Shift+I**.
+
+| To... | Do this |
+|---|---|
+| Ask about the PDF | Type in the box, e.g. *What is the loan amount?*, press **Send** (Ctrl+Enter). Click a page number in the answer to see that page. |
+| Summarise | Choose *Whole document*, *Current page*, *Pages...* or a *Chapter* (from the bookmarks), choose Short / Medium / Detailed, press **Summarise**. Or type *Summarise chapter 3 in short*. |
+| Fill a form | Open the PDF that has the information (e.g. a customer profile), press **Fill a Form from this PDF...**, choose the form. Check every value in the list (correct or type missing ones), press **Fill and Save As...**. The filled copy opens; the original form is not changed. |
+
+- The full installer includes the AI model; it runs **only on this computer** (no internet, nothing is uploaded). It needs about 2 GB of free memory. Answers take a few seconds; summarising a long document can take several minutes on an ordinary PC - use **Stop** at any time.
+- Without the model (Lite installer) the Assistant works in **quick mode**: it shows key sentences / best-matching passages and fills forms from "Label: value" lines.
+- AI can make mistakes. Always check important figures against the page.
+- Scanned PDFs have no text: run OCR first.
+- Any other GGUF chat model can be put in the program's `ai\models` folder (the largest file is used).
 
 ## Features
 

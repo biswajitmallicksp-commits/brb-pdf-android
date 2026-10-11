@@ -36,6 +36,8 @@ from app.ui.edit_dialogs import (
 from app.ui.analysis_ui import AnalysisWindow
 from app.ui.page_view import TEXT_TOOLS
 from app.ui.edit_text_panel import EditTextPanel
+from app.ui.ai_panel import AIPanel
+from app.ai import engine as ai_engine
 from app.ui.properties_panel import DEFAULT_STYLES, TOOL_NAMES, PropertiesPanel, style_from_json, style_to_json
 from app.ui.ocr_ui import (
     OcrDialog, OcrInfoDialog, OcrJobWorker, OcrTextDialog, PageTextWorker, describe_pages, saved_languages,
@@ -105,6 +107,16 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.text_dock)
         self.text_dock.hide()
         self.text_dock.visibilityChanged.connect(self._on_text_dock_visibility)
+
+        self.ai_panel = AIPanel(self)
+        self.ai_dock = QDockWidget("AI Assistant", self)
+        self.ai_dock.setObjectName("aiDock")
+        self.ai_dock.setWidget(self.ai_panel)
+        self.ai_dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.LeftDockWidgetArea)
+        self.ai_dock.setMinimumWidth(380)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.ai_dock)
+        self.ai_dock.hide()
+        self.ai_dock.visibilityChanged.connect(lambda v: self.actions["ai_panel"].setChecked(v) if self.isVisible() else None)
 
         self.actions: dict[str, QAction] = {}
         self._create_actions()
@@ -263,6 +275,12 @@ class MainWindow(QMainWindow):
         A("props_panel", "P&roperties Panel", self.toggle_props_panel, "F6", "sidebar", True,
           tip="Show/hide the Properties panel")
 
+        A("ai_panel", "AI &Assistant", self.toggle_ai_panel, "Ctrl+Shift+I", "analysis", True,
+          tip="Offline AI: ask questions, summarise the document or a chapter, fill a form from this PDF")
+        A("ai_summary", "&Summarise Document", lambda: self._ai_action("summary"), None,
+          tip="Summarise the whole document (offline)")
+        A("ai_form", "&Fill a Form from this PDF...", lambda: self._ai_action("form"), None,
+          tip="Choose a form; its blanks are filled with details from the open PDF")
         A("analyse", "&Analyse Document...", self.analyse_document, "Ctrl+Shift+A", "analysis",
           tip="Analyse the PDF: pages, scanned pages, fonts, forms, signatures, structure")
 
@@ -327,7 +345,7 @@ class MainWindow(QMainWindow):
         for k in ("rotate_cw", "rotate_ccw"):
             m.addAction(self.actions[k])
         m.addSeparator()
-        for k in ("sidebar", "props_panel", "text_panel", "fullscreen", "dark"):
+        for k in ("sidebar", "props_panel", "text_panel", "ai_panel", "fullscreen", "dark"):
             m.addAction(self.actions[k])
 
         m = mb.addMenu("&Document")
@@ -375,6 +393,10 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         for text in FUTURE_ANALYSIS[1]:
             m.addAction(f"{text}   (coming in {FUTURE_ANALYSIS[0]})").setEnabled(False)
+
+        m = mb.addMenu("A&I")
+        for k in ("ai_panel", "ai_summary", "ai_form"):
+            m.addAction(self.actions[k])
 
         m = mb.addMenu("&OCR")
         for k in ("ocr", "ocr_page"):
@@ -473,6 +495,12 @@ class MainWindow(QMainWindow):
         self.actions["apply_redactions_tb"] = apply_btn
         tb2.addSeparator()
         tb2.addAction(self.actions["props_panel"])
+        tb2.addSeparator()
+        tb2.addAction(self.actions["ai_panel"])
+        ai_btn = tb2.widgetForAction(self.actions["ai_panel"])
+        if ai_btn is not None:
+            self.actions["ai_panel"].setIconText("AI Assistant")
+            ai_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
     def _create_statusbar(self) -> None:
         sb = self.statusBar()
@@ -1250,6 +1278,28 @@ class MainWindow(QMainWindow):
                 t.view.set_tool(tool)
         self._sync_tool_ui(tool)
 
+    # ------------------------------------------------------------ AI panel
+    def toggle_ai_panel(self) -> None:
+        on = self.actions["ai_panel"].isChecked()
+        self.ai_dock.setVisible(on)
+        if on:
+            self.ai_panel.refresh_engine()
+            self.ai_panel.document_changed()
+            self.ai_panel.prompt.setFocus()
+
+    def _ai_action(self, what: str) -> None:
+        if self.current_tab() is None:
+            self.statusBar().showMessage("Open a PDF first.", 4000)
+            return
+        if not self.ai_dock.isVisible():
+            self.actions["ai_panel"].setChecked(True)
+            self.toggle_ai_panel()
+        if what == "summary":
+            self.ai_panel.scope.setCurrentIndex(0)
+            self.ai_panel.summarise_clicked()
+        else:
+            self.ai_panel.fill_form_clicked()
+
     # ------------------------------------------------------- Edit Text panel
     def toggle_text_panel(self) -> None:
         on = self.actions["text_panel"].isChecked()
@@ -1770,6 +1820,8 @@ class MainWindow(QMainWindow):
             self._sync_tool_ui(tab.view.tool)
         if self._text_panel_open():
             self.text_panel.show_page(tab, tab.view.current_page if tab is not None else -1, force=True)
+        if self.ai_dock.isVisible():
+            self.ai_panel.document_changed()
 
     def _on_page_changed(self, _page: int) -> None:
         self._update_status()
@@ -1790,7 +1842,7 @@ class MainWindow(QMainWindow):
                   "mode_two", "first", "prev", "next", "last", "goto", "ocr", "ocr_page",
                   "organize", "pg_rotate_cw", "pg_rotate_ccw", "pg_rotate_180", "pg_delete", "pg_duplicate",
                   "pg_move", "pg_reverse", "pg_insert_blank", "pg_insert_file", "pg_replace", "pg_extract",
-                  "pg_split", "text_panel", "watermark", "header_footer", "extract_images", "redact_text", "apply_redactions",
+                  "pg_split", "text_panel", "ai_summary", "ai_form", "watermark", "header_footer", "extract_images", "redact_text", "apply_redactions",
                   "apply_redactions_tb", "delete_comments", "flatten_comments", "analyse") + tuple(
                       k for k in self.actions if k.startswith("tool_")):
             self.actions[k].setEnabled(has)
@@ -1895,4 +1947,5 @@ class MainWindow(QMainWindow):
         if not self.close_all():          # user cancelled on an unsaved document
             event.ignore()
             return
+        ai_engine.shutdown()              # stop the local AI program
         event.accept()

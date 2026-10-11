@@ -3,7 +3,13 @@
 ; Installs the ready program: Python is NOT needed on the computer.
 
 #ifndef AppVersion
-  #define AppVersion "0.5.0"
+  #define AppVersion "0.6.0"
+#endif
+; /DEdition=Lite builds the installer without the AI model
+#ifdef Edition
+  #define Suffix "-" + Edition
+#else
+  #define Suffix ""
 #endif
 
 [Setup]
@@ -22,7 +28,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputDir=..\output
-OutputBaseFilename=BRB-PDF-Setup-{#AppVersion}
+OutputBaseFilename=BRB-PDF-Setup{#Suffix}-{#AppVersion}
 SetupIconFile=..\assets\app.ico
 UninstallDisplayIcon={app}\PDFWorkbench.exe
 UninstallDisplayName=BRB PDF
@@ -31,13 +37,18 @@ SolidCompression=yes
 WizardStyle=modern
 ChangesAssociations=yes
 CloseApplications=yes
+DiskSpanning=no
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "pdfassoc"; Description: "Add BRB PDF to ""Open with"" for PDF files"; GroupDescription: "PDF files:"
 
 [Files]
-Source: "..\dist\PDFWorkbench\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\PDFWorkbench\*"; DestDir: "{app}"; Excludes: "\ai\models\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+#ifndef Edition
+; the AI model is already compressed: store it as it is (much faster)
+Source: "..\dist\PDFWorkbench\ai\models\*"; DestDir: "{app}\ai\models"; Flags: ignoreversion nocompression
+#endif
 
 [Icons]
 Name: "{autoprograms}\BRB PDF"; Filename: "{app}\PDFWorkbench.exe"
