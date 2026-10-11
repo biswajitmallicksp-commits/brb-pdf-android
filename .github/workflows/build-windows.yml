@@ -124,22 +124,26 @@ jobs:
           }
 
       - name: Build the program (PyInstaller)
+        shell: pwsh
         run: |
-          python -m PyInstaller --noconfirm --clean --windowed `
-            --name PDFWorkbench `
-            --icon assets\app.ico `
-            --add-data "assets;assets" `
-            --exclude-module tkinter `
-            --exclude-module PySide6.QtWebEngineCore `
-            --exclude-module PySide6.QtWebEngineWidgets `
-            --exclude-module PySide6.Qt3DCore `
-            --exclude-module PySide6.QtQuick `
-            --exclude-module PySide6.QtQml `
-            --exclude-module PySide6.QtMultimedia `
-            main.py
-          xcopy /e /i /y /q tessdata dist\PDFWorkbench\tessdata
-          copy /y README.md dist\PDFWorkbench\
-          copy /y THIRD_PARTY_LICENSES.md dist\PDFWorkbench\
+          $ErrorActionPreference = 'Continue'
+          cmd /c "python -m PyInstaller --noconfirm --clean --windowed --name PDFWorkbench --icon assets\app.ico --add-data assets;assets --exclude-module tkinter --exclude-module PySide6.QtWebEngineCore --exclude-module PySide6.QtWebEngineWidgets --exclude-module PySide6.Qt3DCore --exclude-module PySide6.QtQuick --exclude-module PySide6.QtQml --exclude-module PySide6.QtMultimedia main.py > pyinstaller.log 2>&1"
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            $tail = (Get-Content pyinstaller.log -Tail 60 | ForEach-Object { $_.TrimEnd() }) -join '%0A'
+            Write-Host "::error title=PyInstaller (exit $code)::$tail"
+            exit 1
+          }
+          try {
+            $ErrorActionPreference = 'Stop'
+            Copy-Item -Recurse tessdata dist\PDFWorkbench\tessdata
+            Copy-Item README.md, THIRD_PARTY_LICENSES.md -Destination dist\PDFWorkbench\
+            $size = (Get-ChildItem dist\PDFWorkbench -Recurse | Measure-Object Length -Sum).Sum
+            Write-Host "::notice::Program folder $([math]::Round($size/1MB)) MB"
+          } catch {
+            Write-Host "::error title=copy::$($_.Exception.Message)"
+            exit 1
+          }
 
       - name: Check the program starts (no Python on the path)
         shell: pwsh
