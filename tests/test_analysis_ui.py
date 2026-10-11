@@ -33,7 +33,7 @@ def main() -> int:
 
     shots = ROOT / "tests" / "samples" / "screenshots"
     shots.mkdir(parents=True, exist_ok=True)
-    tmp = tempfile.TemporaryDirectory()
+    tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     path = Path(tmp.name) / "mixed.pdf"
     build(path)
     app = QApplication.instance() or QApplication(sys.argv)

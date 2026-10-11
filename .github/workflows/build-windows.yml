@@ -99,7 +99,10 @@ jobs:
             $out = & python @cmd 2>&1 | Out-String
             Write-Host $out
             if ($LASTEXITCODE -ne 0) {
-              ($out -split "`n" | Select-Object -Last 25) | ForEach-Object { if ($_.Trim()) { Write-Host "::error title=$label::$($_.Trim())" } }
+              $fails = ($out -split "`n" | Where-Object { $_ -match '^(FAIL|ERROR):|Error|assert' } | Select-Object -First 15) -join '%0A'
+              $tail = ($out -split "`n" | Select-Object -Last 70 | ForEach-Object { $_.TrimEnd() }) -join '%0A'
+              Write-Host "::error title=$label (summary)::$fails"
+              Write-Host "::error title=$label (end of output)::$tail"
               throw "$label failed"
             }
           }
@@ -114,7 +117,8 @@ jobs:
           $out = & python tests\test_ai_live.py 2>&1 | Out-String
           Write-Host $out
           if ($LASTEXITCODE -ne 0) {
-            ($out -split "`n" | Select-Object -Last 25) | ForEach-Object { if ($_.Trim()) { Write-Host "::error title=live AI::$($_.Trim())" } }
+            $tail = ($out -split "`n" | Select-Object -Last 70 | ForEach-Object { $_.TrimEnd() }) -join '%0A'
+            Write-Host "::error title=live AI::$tail"
             Get-ChildItem "$env:LOCALAPPDATA\PDFWorkbench\logs\local-ai.log" -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_ -Tail 15 | ForEach-Object { Write-Host "::error title=local-ai.log::$_" } }
             throw "live AI test failed"
           }

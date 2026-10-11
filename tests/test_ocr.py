@@ -44,7 +44,7 @@ def make_scanned_pdf(path: Path, rotation: int = 0, extra_text_page: bool = Fals
 class OcrTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
+        cls.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         cls.dir = Path(cls.tmp.name)
 
     @classmethod

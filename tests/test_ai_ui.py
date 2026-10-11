@@ -37,7 +37,7 @@ def main() -> int:  # noqa: C901
 
     shots = ROOT / "tests" / "samples" / "screenshots"
     shots.mkdir(parents=True, exist_ok=True)
-    tmp = tempfile.TemporaryDirectory()
+    tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     folder = Path(tmp.name)
     bpath, spath, fpath = folder / "loan_book.pdf", folder / "profile.pdf", folder / "form.pdf"
     book().save(bpath)

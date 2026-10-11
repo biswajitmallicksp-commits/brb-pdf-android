@@ -158,7 +158,7 @@ class FormTests(unittest.TestCase):
         self.assertEqual(got["Annual Income"], "Rs. 8,40,000")     # from the two-column table
         self.assertEqual(got["Nominee Name"], "")                  # not in the document: left empty
         self.assertEqual(next(f for f in fields if f.label == "Annual Income").source_page, 1)
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             out = Path(tmp) / "filled.pdf"
             n = F.fill(flat_form(), fields, str(out))
             self.assertEqual(n, 7)
@@ -172,7 +172,7 @@ class FormTests(unittest.TestCase):
             self.assertGreater(pan.x0, label.x1)
 
     def test_fillable_form(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             path = Path(tmp) / "form.pdf"
             fillable_form().save(path)
             fields = F.detect_fields(fitz.open(path))
@@ -205,7 +205,7 @@ class ModelTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
+        cls.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         model = Path(cls.tmp.name) / "fake.gguf"
         model.write_bytes(b"0")
         cls.model = E.LocalModel(Path(sys.executable), model, launcher=[sys.executable, str(FAKE)])

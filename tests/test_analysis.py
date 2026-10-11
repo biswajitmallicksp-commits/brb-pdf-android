@@ -48,7 +48,7 @@ def build(path: Path) -> None:
 class AnalysisTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
+        cls.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         cls.path = Path(cls.tmp.name) / "mixed.pdf"
         build(cls.path)
         cls.report = analyze_file(str(cls.path), detect_tables=True)

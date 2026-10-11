@@ -34,7 +34,7 @@ def main() -> int:
 
     shots = ROOT / "tests" / "samples" / "screenshots"
     shots.mkdir(parents=True, exist_ok=True)
-    tmp = tempfile.TemporaryDirectory()
+    tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     folder = Path(tmp.name)
     src = folder / "statement.pdf"
     d = fitz.open()

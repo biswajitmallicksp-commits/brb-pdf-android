@@ -89,7 +89,7 @@ class ContentTests(unittest.TestCase):
             C.add_text(page, fitz.Rect(10, 10, 100, 100), "   ", C.TextStyle())
 
     def test_images(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             img = Path(tmp) / "logo.png"
             pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 60, 30), False)
             pix.clear_with(120)
@@ -159,7 +159,7 @@ class AnnotTests(unittest.TestCase):
         A.delete_annot(page, sq)
         self.assertEqual(len(A.list_annots(page)), 8)
         # survives saving
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             out = Path(tmp) / "a.pdf"
             doc.save(out)
             with fitz.open(out) as d:

@@ -67,7 +67,7 @@ def main() -> int:
         say(f"FORM ({time.time() - t0:.1f}s): " + "; ".join(f"{f.label}={f.value!r} [{f.source}]" for f in fields))
         got = {f.label: f.value for f in fields}
         assert got["PAN No"] == "ABCPS1234K" and got["Nominee Name"] == "", got
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             F.fill(flat_form(), fields[:8], str(Path(tmp) / "f.pdf"))
     finally:
         model.stop()

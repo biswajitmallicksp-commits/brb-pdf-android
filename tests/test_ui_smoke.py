@@ -42,7 +42,7 @@ def main() -> int:
     shots.mkdir(exist_ok=True)
 
     app = QApplication.instance() or QApplication(sys.argv)
-    tmp = tempfile.TemporaryDirectory()
+    tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     db = AppDatabase(Path(tmp.name) / "ui.sqlite3")
     win = MainWindow(db)
     win.resize(1400, 900)

@@ -52,7 +52,7 @@ class RangeTests(unittest.TestCase):
 
 class OperationTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
+        self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.dir = Path(self.tmp.name)
         self.doc = fitz.open(make_pdf(self.dir / "ten.pdf", 10))
 
@@ -165,7 +165,7 @@ class OperationTests(unittest.TestCase):
 
 class UndoTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
+        self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.dir = Path(self.tmp.name)
         self.path = make_pdf(self.dir / "doc.pdf", 5)
 

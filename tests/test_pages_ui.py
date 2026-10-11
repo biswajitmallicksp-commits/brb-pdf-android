@@ -36,7 +36,7 @@ def main() -> int:  # noqa: C901 - one long scenario
 
     shots = ROOT / "tests" / "samples" / "screenshots"
     shots.mkdir(parents=True, exist_ok=True)
-    tmp = tempfile.TemporaryDirectory()
+    tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     folder = Path(tmp.name)
     src = make_pdf(folder / "statement.pdf", 12, bookmarks=True)
     other = make_pdf(folder / "annexure.pdf", 3, prefix="X")

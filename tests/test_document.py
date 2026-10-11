@@ -22,7 +22,7 @@ from app.utils.errors import PasswordRequired, PdfOpenError, WrongPassword  # no
 class DocumentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
+        cls.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         cls.dir = Path(cls.tmp.name)
         doc = fitz.open()
         for i in range(30):
@@ -141,7 +141,7 @@ class CacheTests(unittest.TestCase):
 
 class DatabaseTests(unittest.TestCase):
     def test_recent_and_settings(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             db = AppDatabase(Path(tmp) / "t.sqlite3")
             db.add_recent("C:/a.pdf")
             db.add_recent("C:/b.pdf", 7)
