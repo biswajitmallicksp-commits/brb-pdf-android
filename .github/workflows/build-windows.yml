@@ -93,14 +93,31 @@ jobs:
           echo "version=$base.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
       - name: Tests
+        shell: pwsh
         run: |
-          python -m unittest discover -s tests -v
-          python tests\test_text_panel_ui.py
-          python tests\test_edit_ui.py
-          python tests\test_ai_ui.py
+          function Run-Test($label, [string[]]$cmd) {
+            $out = & python @cmd 2>&1 | Out-String
+            Write-Host $out
+            if ($LASTEXITCODE -ne 0) {
+              ($out -split "`n" | Select-Object -Last 25) | ForEach-Object { if ($_.Trim()) { Write-Host "::error title=$label::$($_.Trim())" } }
+              throw "$label failed"
+            }
+          }
+          Run-Test "unit tests" @("-m", "unittest", "discover", "-s", "tests")
+          Run-Test "edit text panel" @("tests\test_text_panel_ui.py")
+          Run-Test "editing UI" @("tests\test_edit_ui.py")
+          Run-Test "AI panel" @("tests\test_ai_ui.py")
 
       - name: Live test with the real local AI model
-        run: python tests\test_ai_live.py
+        shell: pwsh
+        run: |
+          $out = & python tests\test_ai_live.py 2>&1 | Out-String
+          Write-Host $out
+          if ($LASTEXITCODE -ne 0) {
+            ($out -split "`n" | Select-Object -Last 25) | ForEach-Object { if ($_.Trim()) { Write-Host "::error title=live AI::$($_.Trim())" } }
+            Get-ChildItem "$env:LOCALAPPDATA\PDFWorkbench\logs\local-ai.log" -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_ -Tail 15 | ForEach-Object { Write-Host "::error title=local-ai.log::$_" } }
+            throw "live AI test failed"
+          }
 
       - name: Build the program (PyInstaller)
         run: |
