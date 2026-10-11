@@ -53,7 +53,7 @@ jobs:
             $rels = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=40"
             $rel = $null; $asset = $null
             foreach ($r in $rels) {
-              if ($r.draft -or $r.prerelease) { continue }
+              if ($r.draft) { continue }
               $a = $r.assets | Where-Object { $_.name -match 'bin-win-cpu-x64\.zip$' } | Select-Object -First 1
               if (-not $a) { $a = $r.assets | Where-Object { $_.name -match 'bin-win-avx2-x64\.zip$' } | Select-Object -First 1 }
               if ($a) { $rel = $r; $asset = $a; break }
