@@ -20,6 +20,19 @@ bank-statement analysis arrive next (see *Roadmap* below).
   Logs contain file paths and errors, never document text.
 
 
+
+## Edit as Word document (OCR result or any PDF)
+
+1. **OCR > Make Searchable PDF**: keep *Show the result first* (and tick *Also open the text as an editable
+   document*). The result opens in a tab marked **(not saved)** - nothing is saved yet.
+2. The editable document opens beside it: it looks like the page (sizes, bold, titles, table columns).
+   Change anything like in Word. The original page is shown on the left for comparison.
+3. Press **Save** (Ctrl+S). Choose **Word, PDF or both**, the **same folder as the original or another
+   folder**, the name, and whether to **keep the original PDF or move it to the Recycle Bin**.
+4. Closing without saving asks first. Nothing is written until you press Save.
+
+For a PDF that already has text, use **Edit as Word** on the toolbar (Ctrl+Alt+W).
+
 ## AI Assistant (offline)
 
 Open it with **AI Assistant** on the second toolbar row, the **AI** menu, or **Ctrl+Shift+I**.

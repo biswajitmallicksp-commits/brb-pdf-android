@@ -84,6 +84,9 @@ class PdfDocument:
         self._undo: list[tuple[str, bytes]] = []
         self._redo: list[tuple[str, bytes]] = []
         self._clean_depth = 0          # undo depth that matches the file on disk (-1 = none)
+        self.temporary = False         # an OCR result kept in the temp folder until the user saves it
+        self.suggested_path: Path | None = None
+        self.ocr_source: Path | None = None    # the PDF an OCR result was made from
         self._permissions = -1
         self._open(password)
 
@@ -421,6 +424,7 @@ class PdfDocument:
                 self.path = target
                 self._clean_depth = len(self._undo)
                 self.modified = False
+                self.temporary = False
         log.info("Saved %s", target)
         return target
 

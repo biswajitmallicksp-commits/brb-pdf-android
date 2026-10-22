@@ -110,6 +110,7 @@ jobs:
           Run-Test "edit text panel" @("tests\test_text_panel_ui.py")
           Run-Test "editing UI" @("tests\test_edit_ui.py")
           Run-Test "AI panel" @("tests\test_ai_ui.py")
+          Run-Test "editable document" @("tests\test_doc_editor.py")
 
       - name: Live test with the real local AI model
         shell: pwsh
@@ -127,7 +128,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          cmd /c "python -m PyInstaller --noconfirm --clean --windowed --name PDFWorkbench --icon assets\app.ico --add-data assets;assets --exclude-module tkinter --exclude-module PySide6.QtWebEngineCore --exclude-module PySide6.QtWebEngineWidgets --exclude-module PySide6.Qt3DCore --exclude-module PySide6.QtQuick --exclude-module PySide6.QtQml --exclude-module PySide6.QtMultimedia main.py > pyinstaller.log 2>&1"
+          cmd /c "python -m PyInstaller --noconfirm --clean --windowed --name PDFWorkbench --icon assets\app.ico --add-data assets;assets --collect-data docx --exclude-module tkinter --exclude-module PySide6.QtWebEngineCore --exclude-module PySide6.QtWebEngineWidgets --exclude-module PySide6.Qt3DCore --exclude-module PySide6.QtQuick --exclude-module PySide6.QtQml --exclude-module PySide6.QtMultimedia main.py > pyinstaller.log 2>&1"
           $code = $LASTEXITCODE
           if ($code -ne 0) {
             $tail = (Get-Content pyinstaller.log -Tail 60 | ForEach-Object { $_.TrimEnd() }) -join '%0A'
@@ -154,6 +155,10 @@ jobs:
           if ($q.HasExited) { throw "PDFWorkbench.exe closed by itself (exit code $($q.ExitCode))" }
           Stop-Process -Id $q.Id -Force
           Write-Host "PDFWorkbench.exe started and kept running."
+          $t = Start-Process -FilePath "dist\PDFWorkbench\PDFWorkbench.exe" -ArgumentList "--selftest", "$env:RUNNER_TEMP\selftest" -PassThru -Wait
+          $res = Get-Content "$env:RUNNER_TEMP\selftest\selftest.txt" -ErrorAction SilentlyContinue
+          Write-Host "::notice::Word/PDF export in the built program: $res (exit $($t.ExitCode))"
+          if ($res -ne "OK") { throw "The built program could not write Word/PDF files" }
 
       - name: Check the AI engine starts from the program folder
         shell: pwsh

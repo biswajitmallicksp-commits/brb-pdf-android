@@ -37,6 +37,7 @@ if exist dist\PDFWorkbench rmdir /s /q dist\PDFWorkbench
     --name PDFWorkbench ^
     --icon assets\app.ico ^
     --add-data "assets;assets" ^
+    --collect-data docx ^
     --exclude-module tkinter ^
     --exclude-module PySide6.QtWebEngineCore ^
     --exclude-module PySide6.QtWebEngineWidgets ^

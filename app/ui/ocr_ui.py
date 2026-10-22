@@ -151,6 +151,30 @@ class ScannedBanner(QWidget):
         self.show()
 
 
+def temp_dir() -> Path:
+    """Private folder for results that are not saved yet (cleaned automatically)."""
+    from app import config
+    d = config.DATA_DIR / "temp"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def temp_output_path(source: Path) -> Path:
+    import time as _time
+    return temp_dir() / f"{Path(source).stem}_OCR_{_time.strftime('%H%M%S')}.pdf"
+
+
+def clean_temp(max_age_hours: float = 48) -> None:
+    import time as _time
+    limit = _time.time() - max_age_hours * 3600
+    try:
+        for f in temp_dir().glob("*.pdf"):
+            if f.stat().st_mtime < limit:
+                f.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 class OcrDialog(QDialog):
     """Choose pages, languages, quality and the output file."""
 
@@ -173,8 +197,8 @@ class OcrDialog(QDialog):
             summary = (f"All {n} pages already contain text, so there is nothing to recognise. "
                        "(Use OCR > Recognise Text on This Page to read the image text anyway.)")
         info = QLabel(summary + "<br><span style='color:gray'>Pages that already have text are skipped "
-                      "automatically. The original file is not changed - the result is saved as a new PDF "
-                      "that looks identical but has searchable, copyable text.</span>")
+                      "automatically. The original file is not changed. The result looks identical but has "
+                      "searchable, copyable text.</span>")
         info.setWordWrap(True)
 
         # pages
@@ -217,18 +241,37 @@ class OcrDialog(QDialog):
             self.quality.addItem(label, key)
         self.quality.setCurrentIndex([k for k, _ in QUALITY_LABELS].index(saved_quality(db)))
         self.quality.currentIndexChanged.connect(self._update_estimate)
+        # what happens with the result
+        result_box = QGroupBox("Result")
+        self.rb_temp = QRadioButton("Show the result first - nothing is saved until I press Save (recommended)")
+        self.rb_file = QRadioButton("Save straight to:")
         self.output_edit = QLineEdit(str(engine.default_output_path(doc.path)))
         browse = QPushButton("Browse...")
         browse.clicked.connect(self._browse)
-        out_row = QHBoxLayout()
-        out_row.addWidget(self.output_edit, 1)
-        out_row.addWidget(browse)
         self.open_after = QCheckBox("Open the searchable PDF when finished")
         self.open_after.setChecked(True)
+        self.edit_after = QCheckBox("Also open the text as an editable document (like Word)")
+        self.edit_after.setToolTip("Edit the recognised text like in Word, then Save it as Word or PDF")
+        self.edit_after.setChecked((db.get_setting("ocr_edit_after") or "1") == "1")
+        mode_group = QButtonGroup(self)
+        mode_group.addButton(self.rb_temp)
+        mode_group.addButton(self.rb_file)
+        (self.rb_file if (db.get_setting("ocr_result_mode") or "temp") == "file" else self.rb_temp).setChecked(True)
+        out_row = QHBoxLayout()
+        out_row.addWidget(self.rb_file)
+        out_row.addWidget(self.output_edit, 1)
+        out_row.addWidget(browse)
+        rl = QVBoxLayout(result_box)
+        rl.addWidget(self.rb_temp)
+        rl.addLayout(out_row)
+        rl.addWidget(self.open_after)
+        rl.addWidget(self.edit_after)
+        self.output_edit.textEdited.connect(lambda _t: self.rb_file.setChecked(True))
+        for w in (self.rb_temp, self.rb_file):
+            w.toggled.connect(self._mode_changed)
+        self._mode_changed()
         form = QFormLayout()
         form.addRow("Quality:", self.quality)
-        form.addRow("Save as:", out_row)
-        form.addRow("", self.open_after)
 
         self.estimate = QLabel()
         self.estimate.setWordWrap(True)
@@ -247,6 +290,7 @@ class OcrDialog(QDialog):
         lay.addWidget(pages_box)
         lay.addWidget(lang_box)
         lay.addLayout(form)
+        lay.addWidget(result_box)
         lay.addWidget(self.estimate)
         lay.addWidget(buttons)
         self._update_estimate()
@@ -261,8 +305,19 @@ class OcrDialog(QDialog):
         return engine.QUALITY_DPI[self.quality.currentData()]
 
     @property
+    def temporary(self) -> bool:
+        return self.rb_temp.isChecked()
+
+    @property
     def output(self) -> str:
+        if self.temporary:
+            return str(temp_output_path(self.doc.path))
         return self.output_edit.text().strip()
+
+    def _mode_changed(self) -> None:
+        on = self.rb_file.isChecked()
+        self.output_edit.setEnabled(on)
+        self.open_after.setEnabled(on)
 
     def selected_pages(self) -> list[int] | None:
         if self.rb_all.isChecked():
@@ -310,6 +365,13 @@ class OcrDialog(QDialog):
             QMessageBox.warning(self, "OCR", str(exc))
             return
         out = Path(self.output) if self.output else None
+        if self.temporary:
+            self.db.set_setting("ocr_langs", "+".join(self.languages))
+            self.db.set_setting("ocr_quality", self.quality.currentData())
+            self.db.set_setting("ocr_result_mode", "temp")
+            self.db.set_setting("ocr_edit_after", "1" if self.edit_after.isChecked() else "0")
+            self.accept()
+            return
         if out is None or out.suffix.lower() != ".pdf":
             QMessageBox.warning(self, "OCR", "Choose where to save the searchable PDF (a .pdf file).")
             return
@@ -323,6 +385,8 @@ class OcrDialog(QDialog):
                 return
         self.db.set_setting("ocr_langs", "+".join(self.languages))
         self.db.set_setting("ocr_quality", self.quality.currentData())
+        self.db.set_setting("ocr_result_mode", "file")
+        self.db.set_setting("ocr_edit_after", "1" if self.edit_after.isChecked() else "0")
         self.accept()
 
 

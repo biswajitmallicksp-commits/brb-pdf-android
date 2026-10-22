@@ -3,7 +3,7 @@
 ; Installs the ready program: Python is NOT needed on the computer.
 
 #ifndef AppVersion
-  #define AppVersion "0.6.0"
+  #define AppVersion "0.7.0"
 #endif
 ; /DEdition=Lite builds the installer without the AI model
 #ifdef Edition

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 - OCR result shown first, editable Word-like document (2026-10-23)
+
+### Added
+- **OCR result is shown first.** OCR > Make Searchable PDF now opens the result in a new tab marked *(not saved)*; nothing is written next to your files until you press **Save**. Closing the tab without saving leaves nothing behind (temporary results are kept in the app's own folder and cleaned automatically). "Save straight to a file" is still available.
+- **Edit as Word Document** (Ctrl+Alt+W, toolbar "Edit as Word", OCR and Edit menus, and an option in the OCR window): the text of the PDF - or of the OCR result - opens in a temporary, editable document that looks like the page: same text sizes, bold/italic, centred titles, indents, and table columns kept in place with tab stops; running text re-flows when edited. The original page is shown beside it. Edit like in Word (bold, italic, underline, size, font, find & replace, undo/redo).
+- **One Save window** for edited documents and OCR results: choose **Word (.docx), PDF or both**, **same folder as the original or another folder**, the file name, and whether to **keep the original PDF or move it to the Recycle Bin** (never a permanent delete; asks for confirmation; closes the original first if it is open).
+- `main.py --selftest <folder>`: the build machine checks that the finished program writes Word and PDF files.
+- Tests: `tests/test_doc_editor.py`; `tests/test_ocr_ui.py` updated for the show-first workflow.
+
 ## 0.6.0 - Offline AI Assistant (2026-10-11)
 
 ### Added

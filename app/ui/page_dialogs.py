@@ -529,7 +529,7 @@ class SaveChangesBox:
     """Ask how to save an edited document. Returns 'new', 'overwrite', 'discard' or 'cancel'."""
 
     @staticmethod
-    def ask(parent, title: str, closing: bool = False) -> str:
+    def ask(parent, title: str, closing: bool = False, allow_overwrite: bool = True) -> str:
         box = QMessageBox(parent)
         box.setIcon(QMessageBox.Icon.Question)
         box.setWindowTitle("Save changes")
@@ -537,7 +537,7 @@ class SaveChangesBox:
                     f"How do you want to save the changes to <b>{title}</b>?")
         box.setInformativeText("Saving as a new file keeps your original PDF unchanged.")
         new_btn = box.addButton("Save as new file...", QMessageBox.ButtonRole.AcceptRole)
-        over_btn = box.addButton("Overwrite original", QMessageBox.ButtonRole.DestructiveRole)
+        over_btn = box.addButton("Overwrite original", QMessageBox.ButtonRole.DestructiveRole) if allow_overwrite else None
         discard_btn = box.addButton("Discard changes", QMessageBox.ButtonRole.DestructiveRole) if closing else None
         box.addButton(QMessageBox.StandardButton.Cancel)
         box.setDefaultButton(new_btn)
@@ -545,7 +545,7 @@ class SaveChangesBox:
         clicked = box.clickedButton()
         if clicked is new_btn:
             return "new"
-        if clicked is over_btn:
+        if over_btn is not None and clicked is over_btn:
             return "overwrite"
         if discard_btn is not None and clicked is discard_btn:
             return "discard"

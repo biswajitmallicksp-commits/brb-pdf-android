@@ -79,9 +79,23 @@ def main() -> int:
     pump(app, 300, until=lambda: win._ocr_job is None)
     assert win._ocr_job is None, "OCR did not finish"
     out = folder / "statement_scan_OCR.pdf"
-    assert out.exists(), "no output"
+    assert not out.exists(), "the result is shown first, not saved straight away"
     new_tab = win.current_tab()
-    assert new_tab.doc.path == out, new_tab.doc.path
+    assert new_tab.doc.temporary and "(not saved)" in win.tabs.tabText(win.tabs.currentIndex())
+    # Save -> the Save window (format, folder, original): PDF in the same folder, keep the original
+    from app.ui import save_options as SO
+
+    def choose(dlg):
+        dlg.rb_pdf.setChecked(True)
+        dlg.rb_same.setChecked(True)
+        dlg.keep.setChecked(True)
+        dlg.choice = SO.SaveChoice(dlg._targets(), False)
+        return 1
+    SO.SaveOptionsDialog.exec = choose
+    win.save()
+    assert out.exists(), "no output after Save"
+    assert new_tab.doc.path == out and not new_tab.doc.temporary, new_tab.doc.path
+    assert src.exists()
     pump(app, 10, until=lambda: new_tab.scanned_pages is not None)
     assert new_tab.scanned_pages == [], new_tab.scanned_pages
     assert not new_tab.banner.isVisible()

@@ -38,9 +38,36 @@ def ocr_command(args: list[str]) -> int:
     return 1 if result.pages_failed else 0
 
 
+def selftest(folder: str) -> int:
+    """Used by the build machine: check the packaged program can write Word and PDF files."""
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from pathlib import Path
+
+    import pymupdf as fitz
+    from PySide6.QtWidgets import QApplication
+
+    from app.pdf_editor import doc_export, doc_model
+
+    QApplication.instance() or QApplication(sys.argv[:1])
+    d = fitz.open()
+    p = d.new_page()
+    p.insert_text((50, 80), "Self test 01-04-2025   12,500.00", fontsize=11)
+    qd = doc_export.build_document(doc_model.build_pages(d))
+    out = Path(folder)
+    out.mkdir(parents=True, exist_ok=True)
+    doc_export.save_docx(qd, out / "selftest.docx")
+    doc_export.save_pdf(qd, out / "selftest.pdf")
+    ok = "Self test" in fitz.open(out / "selftest.pdf")[0].get_text()
+    (out / "selftest.txt").write_text("OK" if ok else "FAILED", encoding="utf-8")
+    return 0 if ok else 1
+
+
 def main() -> int:
     if len(sys.argv) > 1 and sys.argv[1] == "--ocr":
         return ocr_command(sys.argv[2:])
+    if len(sys.argv) > 2 and sys.argv[1] == "--selftest":
+        return selftest(sys.argv[2])
     from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QApplication, QMessageBox
 

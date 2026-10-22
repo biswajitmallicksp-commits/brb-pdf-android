@@ -40,9 +40,10 @@ from app.ui.ai_panel import AIPanel
 from app.ai import engine as ai_engine
 from app.ui.properties_panel import DEFAULT_STYLES, TOOL_NAMES, PropertiesPanel, style_from_json, style_to_json
 from app.ui.ocr_ui import (
-    OcrDialog, OcrInfoDialog, OcrJobWorker, OcrTextDialog, PageTextWorker, describe_pages, saved_languages,
-    saved_quality,
+    OcrDialog, OcrInfoDialog, OcrJobWorker, OcrTextDialog, PageTextWorker, clean_temp, describe_pages,
+    saved_languages, saved_quality,
 )
+from app.ui.doc_editor import DocEditorWindow
 from app.ui.page_view import FIT_PAGE, FIT_WIDTH, MODE_CONTINUOUS, MODE_SINGLE, MODE_TWO, TOOL_HAND, TOOL_SELECT
 from app.utils.pages import parse_page_range
 from app.utils.errors import PasswordRequired, WorkbenchError, WrongPassword, describe, log_exception
@@ -118,6 +119,8 @@ class MainWindow(QMainWindow):
         self.ai_dock.hide()
         self.ai_dock.visibilityChanged.connect(lambda v: self.actions["ai_panel"].setChecked(v) if self.isVisible() else None)
 
+        self._doc_windows: list = []          # open editable-document windows
+        clean_temp()                          # unsaved OCR results older than two days
         self.actions: dict[str, QAction] = {}
         self._create_actions()
         self._create_menus()
@@ -289,6 +292,9 @@ class MainWindow(QMainWindow):
         A("ocr_page", "&Recognise Text on This Page...", self.ocr_current_page, "Ctrl+Shift+R",
           tip="Read the text of the current page with OCR and copy it")
         A("ocr_langs", "OCR &Languages...", lambda: OcrInfoDialog(self).exec())
+        A("edit_doc", "Edit as &Word Document...", self.edit_as_document, "Ctrl+Alt+W", "edit_text",
+          tip="Open the text of this PDF (or of a scanned PDF after OCR) as an editable document like Word; "
+              "save it as Word or PDF")
 
         A("about", "&About", self.about)
         A("logs", "Open &Log Folder", lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(config.LOG_DIR))))
@@ -328,6 +334,7 @@ class MainWindow(QMainWindow):
         m.addAction(self.actions["tool_hand"])
         m.addSeparator()
         m.addAction(self.actions["text_panel"])
+        m.addAction(self.actions["edit_doc"])
         for k in ("add_text", "edit_text", "delete_text", "add_image", "delete_image"):
             m.addAction(self.actions[f"tool_{k}"])
         m.addAction(self.actions["extract_images"])
@@ -399,7 +406,7 @@ class MainWindow(QMainWindow):
             m.addAction(self.actions[k])
 
         m = mb.addMenu("&OCR")
-        for k in ("ocr", "ocr_page"):
+        for k in ("ocr", "ocr_page", "edit_doc"):
             m.addAction(self.actions[k])
         m.addSeparator()
         m.addAction(self.actions["ocr_langs"])
@@ -496,6 +503,11 @@ class MainWindow(QMainWindow):
         tb2.addSeparator()
         tb2.addAction(self.actions["props_panel"])
         tb2.addSeparator()
+        tb2.addAction(self.actions["edit_doc"])
+        doc_btn = tb2.widgetForAction(self.actions["edit_doc"])
+        if doc_btn is not None:
+            self.actions["edit_doc"].setIconText("Edit as Word")
+            doc_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         tb2.addAction(self.actions["ai_panel"])
         ai_btn = tb2.widgetForAction(self.actions["ai_panel"])
         if ai_btn is not None:
@@ -621,10 +633,13 @@ class MainWindow(QMainWindow):
         if isinstance(tab, DocumentTab):
             if tab.doc.modified:
                 self.tabs.setCurrentIndex(index)
-                choice = SaveChangesBox.ask(self, tab.doc.title, closing=True)
+                choice = SaveChangesBox.ask(self, tab.doc.title, closing=True,
+                                            allow_overwrite=not tab.doc.temporary)
                 if choice == "cancel":
                     return False
-                if choice == "new" and not self.save_as(tab):
+                if choice == "new" and tab.doc.temporary and not self._save_temporary(tab):
+                    return False
+                if choice == "new" and not tab.doc.temporary and tab.doc.modified and not self.save_as(tab):
                     return False
                 if choice == "overwrite" and not self._save_to(tab, str(tab.doc.path)):
                     return False
@@ -634,6 +649,12 @@ class MainWindow(QMainWindow):
                 win.close()
             self.tabs.removeTab(index)
             tab.close_document()
+            temp = getattr(tab, "temp_file", None)
+            if temp is not None:
+                try:
+                    Path(temp).unlink(missing_ok=True)       # the unsaved OCR result is not needed any more
+                except OSError:
+                    pass
             tab.deleteLater()
         self._update_ui()
         return True
@@ -647,6 +668,10 @@ class MainWindow(QMainWindow):
     def save(self) -> None:
         tab = self.current_tab()
         if tab is None:
+            return
+        if tab.doc.temporary:
+            # an OCR result that is not saved yet: choose format, folder, and what to do with the original
+            self._save_temporary(tab)
             return
         if not tab.doc.modified:
             # nothing changed: offer to save a copy
@@ -662,8 +687,11 @@ class MainWindow(QMainWindow):
         tab = tab if isinstance(tab, DocumentTab) else self.current_tab()
         if tab is None:
             return False
-        suffix = " - edited" if tab.doc.modified else " - copy"
-        suggestion = str(ops.unique_path(tab.doc.path.with_name(tab.doc.path.stem + suffix + ".pdf")))
+        if tab.doc.temporary and tab.doc.suggested_path is not None:
+            suggestion = str(tab.doc.suggested_path)
+        else:
+            suffix = " - edited" if tab.doc.modified else " - copy"
+            suggestion = str(ops.unique_path(tab.doc.path.with_name(tab.doc.path.stem + suffix + ".pdf")))
         target, _ = QFileDialog.getSaveFileName(self, "Save As", suggestion, "PDF documents (*.pdf)")
         if not target:
             return False
@@ -689,7 +717,9 @@ class MainWindow(QMainWindow):
     def _update_tab_title(self, tab: DocumentTab) -> None:
         index = self.tabs.indexOf(tab)
         if index >= 0:
-            self.tabs.setTabText(index, ("* " if tab.doc.modified else "") + tab.doc.title)
+            title = (tab.doc.suggested_path.name + "  (not saved)") if (tab.doc.temporary and tab.doc.suggested_path) \
+                else tab.doc.title
+            self.tabs.setTabText(index, ("* " if tab.doc.modified else "") + title)
             self.tabs.setTabToolTip(index, str(tab.doc.path) + ("  (unsaved changes)" if tab.doc.modified else ""))
 
     # ======================================================== page management
@@ -1139,7 +1169,8 @@ class MainWindow(QMainWindow):
 
         def on_done(result) -> None:
             finish()
-            self._ocr_finished(result, dlg.open_after.isChecked())
+            self._ocr_finished(result, dlg.open_after.isChecked() or dlg.temporary,
+                               temporary=dlg.temporary, edit_after=dlg.edit_after.isChecked(), source=tab)
 
         def on_failed(message: str) -> None:
             finish()
@@ -1154,7 +1185,8 @@ class MainWindow(QMainWindow):
         job.start()
         progress.show()
 
-    def _ocr_finished(self, result, open_after: bool) -> None:
+    def _ocr_finished(self, result, open_after: bool, temporary: bool = False, edit_after: bool = False,
+                      source=None) -> None:
         self.statusBar().clearMessage()
         if result.cancelled:
             QMessageBox.information(self, "OCR cancelled", "OCR was cancelled. No file was written.")
@@ -1163,12 +1195,17 @@ class MainWindow(QMainWindow):
             return
         mins, secs = divmod(int(result.seconds), 60)
         took = f"{mins} min {secs} s" if mins else f"{secs} s"
-        lines = [f"Saved: {result.output}",
+        lines = ["The result is open in a new tab. It is NOT saved yet: press Save (Ctrl+S) and choose where "
+                 "to keep it - or just close the tab if you do not need it." if temporary
+                 else f"Saved: {result.output}",
                  f"Recognised {len(result.pages_done)} page(s), {result.words:,} words, in {took}."]
         if result.pages_skipped:
             lines.append(f"Skipped {len(result.pages_skipped)} page(s) that already had text.")
         if not result.pages_done and not result.pages_failed:
-            lines.append("No scanned pages were found in the selection, so the copy is identical to the original.")
+            lines.append("No scanned pages were found in the selection, so the result is identical to the original.")
+        if edit_after:
+            lines.append("The text also opens as an editable document: change it like in Word, then use "
+                         "Save as Word or Save as PDF there.")
         icon = QMessageBox.Icon.Information
         if result.pages_failed:
             icon = QMessageBox.Icon.Warning
@@ -1176,10 +1213,128 @@ class MainWindow(QMainWindow):
                          "they are kept unchanged. See the log for details.")
         box = QMessageBox(icon, "OCR complete", "\n".join(lines), parent=self)
         box.exec()
+        tab = None
         if open_after:
             tab = self.open_file(str(result.output))
             if tab is not None:
+                if temporary:
+                    src_path = source.doc.path if source is not None else Path(result.output)
+                    tab.doc.temporary = True
+                    tab.doc.suggested_path = ops.unique_path(src_path.with_name(src_path.stem + "_OCR.pdf"))
+                    tab.doc.ocr_source = src_path
+                    tab.temp_file = Path(result.output)
+                    tab.doc.modified = True
+                    tab.doc._clean_depth = -1
+                    self._update_tab_title(tab)
+                    self._update_ui()
                 tab.view.goto_page(result.pages_done[0] if result.pages_done else 0)
+        if edit_after:
+            target = tab if tab is not None else None
+            if target is not None:
+                self.edit_as_document(target, ask_ocr=False)
+            else:
+                try:
+                    data = Path(result.output).read_bytes()
+                    folder = (source.doc.path.parent if source is not None else Path(result.output).parent)
+                    orig = source.doc.path if source is not None else None
+                    self._track_doc_window(DocEditorWindow.open_for(self, data, None, Path(result.output).name, folder,
+                                                                    None, orig, self.retire_original))
+                except Exception as exc:
+                    QMessageBox.warning(self, "Editable document", f"Could not open the text: {exc}")
+
+    # ------------------------------------------------------ editable document
+    def retire_original(self, path: Path) -> tuple[bool, str]:
+        """Close the original PDF if it is open, then move it to the Recycle Bin (never a hard delete)."""
+        from app.ui.save_options import move_to_recycle_bin
+        path = Path(path)
+        for i in reversed(range(self.tabs.count())):
+            t = self.tabs.widget(i)
+            if isinstance(t, DocumentTab) and not t.doc.temporary and t.doc.path.resolve() == path.resolve():
+                if not self.close_tab(i):
+                    return False, "it is still open with unsaved changes"
+        ok, msg = move_to_recycle_bin(path)
+        if ok:
+            log.info("Moved original to the Recycle Bin: %s", path)
+        return ok, msg
+
+    def _save_temporary(self, tab) -> bool:
+        """Save an OCR result that so far lives only in the temp folder: PDF and/or Word, any folder."""
+        from app.ui.save_options import SaveOptionsDialog
+        original = getattr(tab.doc, "ocr_source", None)
+        stem = tab.doc.suggested_path.stem if tab.doc.suggested_path else tab.doc.path.stem
+        dlg = SaveOptionsDialog(original, stem, ("word", "pdf"), "pdf", self, "Save the OCR result")
+        if dlg.exec() != QDialog.DialogCode.Accepted or dlg.choice is None:
+            return False
+        pdfs = [t for t in dlg.choice.targets if t.suffix.lower() == ".pdf"]
+        words = [t for t in dlg.choice.targets if t.suffix.lower() == ".docx"]
+        for t in words:                       # Word first: built from the current (temporary) document
+            try:
+                from app.pdf_editor import doc_export, doc_model
+                import pymupdf as _fitz
+                data = tab.doc.run_read(lambda d: d.tobytes(garbage=0))
+                src = _fitz.open("pdf", data)
+                if src.needs_pass:
+                    src.authenticate(tab.doc.password or "")
+                doc_export.save_docx(doc_export.build_document(doc_model.build_pages(src)), t)
+                src.close()
+            except Exception as exc:
+                log_exception("save Word", exc)
+                QMessageBox.warning(self, "Save", f"The Word file could not be saved:\n{exc}")
+                return False
+        if pdfs:
+            if not self._save_to(tab, str(pdfs[0])):
+                return False
+        else:
+            tab.doc.modified = False          # saved as Word only: the PDF result may be closed
+            self._update_tab_title(tab)
+        if original is not None and dlg.choice.delete_original:
+            ok, msg = self.retire_original(original)
+            QMessageBox.information(self, "Original PDF", f"{original.name} was moved to the Recycle Bin." if ok
+                                    else f"Saved, but {original.name} was not deleted: {msg}")
+        names = ", ".join(t.name for t in dlg.choice.targets)
+        self.statusBar().showMessage(f"Saved {names}", 8000)
+        return True
+
+    def _track_doc_window(self, win) -> None:
+        self._doc_windows.append(win)
+        win.destroyed.connect(lambda _o=None, w=win: self._doc_windows.remove(w) if w in self._doc_windows else None)
+
+    def edit_as_document(self, tab=None, ask_ocr: bool = True) -> None:
+        """Open the text of the PDF as an editable (Word-like) document in memory."""
+        tab = tab if isinstance(tab, DocumentTab) else self.current_tab()
+        if tab is None:
+            return
+        scanned = tab.scanned_pages or []
+        if ask_ocr and scanned:
+            ans = QMessageBox.question(
+                self, "Edit as Word document",
+                f"{len(scanned)} page(s) of this PDF are scanned pictures without text "
+                f"(pages {describe_pages(scanned)}). Their text must be recognised first.\n\n"
+                "Recognise the text now (OCR)? The editable document opens automatically when OCR is done.\n"
+                "Choose No to open only the pages that already have text.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
+            if ans == QMessageBox.StandardButton.Cancel:
+                return
+            if ans == QMessageBox.StandardButton.Yes:
+                self.db.set_setting("ocr_result_mode", "temp")
+                self.db.set_setting("ocr_edit_after", "1")
+                self.run_ocr()
+                return
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            data = tab.doc.run_read(lambda d: d.tobytes(garbage=0))
+            folder = (tab.doc.suggested_path.parent if tab.doc.temporary and tab.doc.suggested_path
+                      else tab.doc.path.parent)
+            title = tab.doc.suggested_path.name if tab.doc.temporary and tab.doc.suggested_path else tab.doc.title
+            original = getattr(tab.doc, "ocr_source", None) if tab.doc.temporary else tab.doc.path
+            win = DocEditorWindow.open_for(self, data, None, title, folder, tab.doc.password, original,
+                                           self.retire_original)
+            self._track_doc_window(win)
+        except Exception as exc:
+            log_exception("edit as document", exc)
+            QMessageBox.warning(self, "Edit as Word document", f"The text could not be opened for editing:\n{exc}")
+        finally:
+            QApplication.restoreOverrideCursor()
 
     def ocr_current_page(self) -> None:
         tab = self.current_tab()
@@ -1842,7 +1997,7 @@ class MainWindow(QMainWindow):
                   "mode_two", "first", "prev", "next", "last", "goto", "ocr", "ocr_page",
                   "organize", "pg_rotate_cw", "pg_rotate_ccw", "pg_rotate_180", "pg_delete", "pg_duplicate",
                   "pg_move", "pg_reverse", "pg_insert_blank", "pg_insert_file", "pg_replace", "pg_extract",
-                  "pg_split", "text_panel", "ai_summary", "ai_form", "watermark", "header_footer", "extract_images", "redact_text", "apply_redactions",
+                  "pg_split", "text_panel", "edit_doc", "ai_summary", "ai_form", "watermark", "header_footer", "extract_images", "redact_text", "apply_redactions",
                   "apply_redactions_tb", "delete_comments", "flatten_comments", "analyse") + tuple(
                       k for k in self.actions if k.startswith("tool_")):
             self.actions[k].setEnabled(has)
@@ -1944,6 +2099,10 @@ class MainWindow(QMainWindow):
             self.db.set_setting("geometry", bytes(self.saveGeometry().toHex()).decode())
         except Exception:
             pass
+        for w in list(self._doc_windows):
+            if not w.close():   # an editable document with unsaved changes: user cancelled
+                event.ignore()
+                return
         if not self.close_all():          # user cancelled on an unsaved document
             event.ignore()
             return
