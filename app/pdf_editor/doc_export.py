@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QMarginsF, QSizeF, Qt
+from PySide6.QtCore import QSizeF, Qt
 from PySide6.QtGui import (
-    QColor, QFont, QPageLayout, QPageSize, QPdfWriter, QTextBlockFormat, QTextCharFormat, QTextCursor,
+    QColor, QFont, QTextBlockFormat, QTextCharFormat, QTextCursor,
     QTextDocument, QTextFormat, QTextOption,
 )
 
@@ -124,11 +124,30 @@ def page_size_pt(doc: QTextDocument) -> tuple[float, float]:
 
 
 # =================================================================== PDF
+_FAMILY_KEYS = {"arial": "sans", "times new roman": "serif", "courier new": "mono", "calibri": "calibri",
+                "nirmala ui": "indic", "helvetica": "sans", "times": "serif", "courier": "mono"}
+
+
+def _x_of(line, pos: int) -> float:
+    v = line.cursorToX(pos)
+    return float(v[0] if isinstance(v, tuple) else v)
+
+
 def save_pdf(doc: QTextDocument, path: str | Path) -> None:
-    """Print the document to a PDF (page markers become page breaks and are not printed)."""
+    """Write the document as a PDF with REAL text (searchable and copyable), placed exactly where the
+    editor shows it: the editor's own layout gives every line's position; MuPDF writes the text with the
+    same fonts. Page markers become page breaks and are not printed."""
+    import re
+
+    import pymupdf as fitz
+
+    from app.pdf_editor import content, fonts
+
     w, h = page_size_pt(doc)
     clone = doc.clone()
-    # remove the visible marker text but keep the page breaks
+    clone.setDocumentMargin(MARGIN_PT * PX)
+    clone.setPageSize(QSizeF(w * PX, h * PX))
+    # marker lines keep their page break but take no room and print nothing
     block = clone.begin()
     while block.isValid():
         if is_marker(block):
@@ -144,14 +163,94 @@ def save_pdf(doc: QTextDocument, path: str | Path) -> None:
             small.setFontPointSize(1)
             c.setBlockCharFormat(small)
         block = block.next()
-    writer = QPdfWriter(str(path))
-    writer.setCreator("BRB PDF")
-    writer.setResolution(96)
-    writer.setPageLayout(QPageLayout(QPageSize(QSizeF(w, h), QPageSize.Unit.Point, "Page"),
-                                     QPageLayout.Orientation.Portrait, QMarginsF(0, 0, 0, 0)))
-    clone.setDocumentMargin(MARGIN_PT * PX)
-    clone.setPageSize(QSizeF(w * PX, h * PX))
-    clone.print_(writer)
+    layout = clone.documentLayout()
+    page_h = h * PX
+    out = fitz.open()
+
+    def page_no(n: int) -> fitz.Page:
+        while out.page_count <= n:
+            out.new_page(width=w, height=h)
+        return out[n]
+    page_no(0)
+    used_fonts: dict[int, set] = {}
+
+    def write(pg: fitz.Page, text: str, x: float, y: float, cf: QTextCharFormat) -> None:
+        size = cf.fontPointSize() or 10.0
+        fams = cf.fontFamilies() or [cf.fontFamily()]
+        key = _FAMILY_KEYS.get((fams[0] if fams else "").lower(), "sans")
+        bold = cf.fontWeight() >= QFont.Weight.DemiBold.value
+        italic = cf.fontItalic()
+        col = cf.foreground().color() if cf.foreground().style() != Qt.BrushStyle.NoBrush else QColor(0, 0, 0)
+        rgb = (col.redF(), col.greenF(), col.blueF())
+        if fonts.needs_indic_font(text):
+            # Bengali / Hindi need shaping: let the HTML engine write it at this place
+            style = content.TextStyle("indic", size, rgb, bold, italic)
+            box = fitz.Rect(x, y - size * 1.05, min(w - 2, x + size * len(text) * 1.2 + 20), y + size * 0.6)
+            try:
+                content.add_text(pg, box, text, style, single_line=True)
+            except Exception:
+                pg.insert_text((x, y), text, fontsize=size, color=rgb)
+            return
+        fam = fonts.family(key) if any(f.key == key for f in fonts.font_families()) else fonts.family("sans")
+        file = fam.file_for(bold, italic)
+        if file:
+            name = f"PW{fam.key}{'B' if bold else ''}{'I' if italic else ''}"
+            font = fitz.Font(fontfile=file)
+            pg.insert_text((x, y), text, fontsize=size, fontname=name, fontfile=file, color=rgb)
+            used_fonts.setdefault(pg.number, set()).add(name)
+        else:
+            name = content._BASE14[(fam.base14 or "helv", bold, italic)]
+            font = fitz.Font(name)
+            pg.insert_text((x, y), text, fontsize=size, fontname=name, color=rgb)
+        if cf.fontUnderline():
+            uw = font.text_length(text, fontsize=size)
+            pg.draw_line((x, y + size * 0.12), (x + uw, y + size * 0.12), color=rgb, width=max(0.5, size / 16))
+
+    block = clone.begin()
+    while block.isValid():
+        if is_marker(block) or not block.text().strip():
+            block = block.next()
+            continue
+        layout.blockBoundingRect(block)            # makes sure the block is laid out
+        tl = block.layout()
+        btext = block.text()
+        frags = []
+        it = block.begin()
+        while not it.atEnd():
+            f = it.fragment()
+            if f.isValid():
+                frags.append((f.position() - block.position(), f.length(), f.charFormat()))
+            it += 1
+        for li in range(tl.lineCount()):
+            line = tl.lineAt(li)
+            top = tl.position().y() + line.y()
+            pno = int(top // page_h)
+            base = (top - pno * page_h + line.ascent()) / PX
+            pg = page_no(pno)
+            ls, le = line.textStart(), line.textStart() + line.textLength()
+            for fs, fl, cf in frags:
+                a, b = max(fs, ls), min(fs + fl, le)
+                if a >= b:
+                    continue
+                pos = a
+                for piece in re.split(r"(\t|\u2028)", btext[a:b]):
+                    if piece and piece not in ("\t", "\u2028") and piece.strip():
+                        # keep leading spaces' width, write the visible words
+                        lead = len(piece) - len(piece.lstrip(" "))
+                        x = (tl.position().x() + _x_of(line, pos + lead)) / PX
+                        write(pg, piece.strip(" ").replace("\ufffc", ""), x, base, cf)
+                    pos += len(piece)
+        block = block.next()
+    for pno, names in used_fonts.items():
+        for name in names:
+            content._fix_space_mapping(out[pno], name)
+    try:
+        out.subset_fonts()
+    except Exception:
+        pass
+    out.set_metadata({"creator": "BRB PDF", "producer": "BRB PDF"})
+    out.save(str(path), garbage=3, deflate=True)
+    out.close()
 
 
 # ================================================================== Word
