@@ -98,7 +98,8 @@ def main() -> int:  # noqa: C901
     out = fitz.open(out_pdf)
     assert out.page_count == 2, out.page_count
     t0 = out[0].get_text()
-    assert "STATE BANK OF INDIA" in t0 and "Page 2 end" not in t0 and "Page 2 end" in out[1].get_text()
+    t1 = out[1].get_text()
+    assert "STATE BANK OF INDIA" in t0 and "Page 2 end" not in t0 and "Page 2 end" in t1, (repr(t0[:300]), repr(t1[:300]))
     assert "─" not in t0, "page markers are not printed"
     credit = out[0].search_for("5,000.00")[0]
     assert abs(credit.x0 - 380) < 6, credit                     # the column stays where it was
