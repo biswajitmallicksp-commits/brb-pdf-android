@@ -91,6 +91,7 @@ def build_document(pages: list[PageModel]) -> QTextDocument:
                     if pos > 2 and (not tabs or pos > tabs[-1].position + 4):
                         tabs.append(QTextOption.Tab(pos, QTextOption.TabType.LeftTab))
                 bf.setTabPositions(tabs)
+                bf.setNonBreakableLines(True)              # a table row stays on one line
                 lead = (p.segs[0].x - MARGIN_PT) * PX > 2
                 for j, s in enumerate(p.segs):
                     texts.append(("\t" if (j or lead) else "", s))
@@ -163,7 +164,14 @@ def save_pdf(doc: QTextDocument, path: str | Path) -> None:
             small.setFontPointSize(1)
             c.setBlockCharFormat(small)
         block = block.next()
+    # lay out at exactly 96 dpi, whatever the screen's scaling (so sizes and positions are the same everywhere)
+    from PySide6.QtGui import QImage
+    ref = QImage(8, 8, QImage.Format.Format_RGB32)
+    ref.setDotsPerMeterX(round(96 / 0.0254))
+    ref.setDotsPerMeterY(round(96 / 0.0254))
     layout = clone.documentLayout()
+    layout.setPaintDevice(ref)
+    clone.setPageSize(QSizeF(w * PX, h * PX))
     page_h = h * PX
     out = fitz.open()
 
@@ -221,6 +229,27 @@ def save_pdf(doc: QTextDocument, path: str | Path) -> None:
             if f.isValid():
                 frags.append((f.position() - block.position(), f.length(), f.charFormat()))
             it += 1
+        tabs = [t.position for t in block.blockFormat().tabPositions()]
+        if tabs and "\t" in btext and tl.lineCount():
+            # table row: every piece goes to its own tab stop (exactly the original columns)
+            line = tl.lineAt(0)
+            top = tl.position().y() + line.y()
+            pno = int(top // page_h)
+            base = (top - pno * page_h + line.ascent()) / PX
+            pg = page_no(pno)
+            left = MARGIN_PT + block.blockFormat().leftMargin() / PX
+            k = 0
+            for fs, fl, cf in frags:
+                for j, piece in enumerate(btext[fs:fs + fl].split("\t")):
+                    if j:
+                        k += 1
+                    if piece.strip():
+                        x = left if k == 0 else MARGIN_PT + tabs[min(k, len(tabs)) - 1] / PX
+                        if k > len(tabs):           # more pieces than tab stops: follow the previous piece
+                            x = MARGIN_PT + tabs[-1] / PX + 40 * (k - len(tabs))
+                        write(pg, piece.strip(), x, base, cf)
+            block = block.next()
+            continue
         for li in range(tl.lineCount()):
             line = tl.lineAt(li)
             top = tl.position().y() + line.y()
