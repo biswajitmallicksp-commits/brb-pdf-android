@@ -116,10 +116,10 @@ def main() -> int:  # noqa: C901
     assert win.open_file(str(src)) is None
     pump(app, 0.3)
     ed = win._doc_windows[-1]
-    assert ed.word_mode and ed.path == src and ed.isVisible(), ed.windowTitle()
+    assert ed.word_mode and ed.path.resolve() == src.resolve() and ed.isVisible(), ed.windowTitle()
     assert ed.windowTitle() == "proposal.docx - BRB PDF Word", ed.windowTitle()
     assert win.open_word(str(src)) is ed, "opening it again brings the same window"
-    assert str(src) in db.recent_files()
+    assert str(src.resolve()) in db.recent_files(), db.recent_files()
     # edit: bold text, a list, a table with an extra row, a picture, a page break
     cur = ed.edit.textCursor()
     cur.movePosition(QTextCursor.MoveOperation.End)
@@ -167,7 +167,7 @@ def main() -> int:  # noqa: C901
     target = folder / "export.pdf"
     QFileDialog.getSaveFileName = staticmethod(lambda *a, **k: (str(target), PDF_FILTER))
     ed.edit.insertPlainText("x")
-    assert ed.save_as() and target.exists() and ed.doc.isModified() and ed.path == src
+    assert ed.save_as() and target.exists() and ed.doc.isModified() and ed.path.resolve() == src.resolve()
     ed.edit.undo()
     ed.doc.setModified(False)
     ed.grab().save(str(ROOT / "tests" / "samples" / "screenshots" / "word_editor.png")) \
