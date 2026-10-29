@@ -180,7 +180,7 @@ def _fix_space_mapping(page: fitz.Page, font_name: str) -> None:
         up = cmap.upper()
         fixed = cmap
         for odd, normal in swaps:
-            if f"<{odd}>" in up and f"<{normal}>" not in up:
+            if f"<{odd}>" in up:                 # our text never means a no-break space / soft hyphen here
                 fixed = re.sub(f"<{odd}>", f"<{normal}>", fixed, flags=re.I)
         if fixed != cmap:
             doc.update_stream(tu, fixed.encode("latin-1"))

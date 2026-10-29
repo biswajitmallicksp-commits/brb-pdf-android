@@ -91,7 +91,9 @@ def main() -> int:  # noqa: C901
     pd = fitz.open(pdf)
     assert pd.page_count == 2, pd.page_count
     t0 = pd[0].get_text()
-    assert "Ramesh Traders" in t0 and "•" in t0 and "r1c1" in t0 and "Second page" not in t0, t0
+    for want in ("Ramesh Traders", "\u2022", "r1c1"):
+        assert want in t0, (want, ascii(t0))
+    assert "Second page" not in t0, ascii(t0)
     assert "Second page text" in pd[1].get_text()
     assert pd[0].get_images(), "the picture is in the PDF"
     assert len(pd[0].get_drawings()) >= 4, "table borders are drawn"
