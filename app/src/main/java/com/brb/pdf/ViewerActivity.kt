@@ -52,6 +52,8 @@ import kotlin.math.max
 class ViewerActivity : Activity(), PageView.Listener {
 
     private var engine: PdfEngine? = null
+    private var convertAsked = false
+    private var convertAfterOcr = false
     private var sourceUri: Uri? = null
 
     private lateinit var pv: PageView
@@ -326,6 +328,11 @@ class ViewerActivity : Activity(), PageView.Listener {
             info("Restricted document", "The owner of this PDF has limited what may be changed in it. " +
                 "Tools that are not allowed are switched off. (BRB PDF does not get around these limits.)")
         }
+        if (intent.getBooleanExtra(EXTRA_CONVERT, false) && !convertAsked) {
+            convertAsked = true
+            pv.post { convertToWord() }
+            return
+        }
         // gentle tip for scanned documents
         eng.async({ eng.pageNeedsOcr(minOf(pv.currentPage, eng.pageCount - 1)) }) { scanned, _ ->
             if (scanned == true && alive()) showHint("This page looks scanned. Use menu > OCR to make the text searchable.", 5000)
@@ -406,7 +413,7 @@ class ViewerActivity : Activity(), PageView.Listener {
         const val SEARCH = 1; const val EDIT = 2; const val UNDO = 3; const val REDO = 4; const val PAGES = 5
         const val OCR = 6; const val COPY_TEXT = 7; const val SAVE_COPY = 8; const val SAVE_OVER = 9; const val SHARE = 10
         const val PRINT = 11; const val PASSWORD = 12; const val REDACT = 13; const val OUTLINE = 14; const val GOTO = 15
-        const val NIGHT = 16; const val INFO = 17; const val ZOOM_FIT = 18; const val TEXTEDIT = 19
+        const val NIGHT = 16; const val INFO = 17; const val ZOOM_FIT = 18; const val TEXTEDIT = 19; const val WORD = 20
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -418,6 +425,7 @@ class ViewerActivity : Activity(), PageView.Listener {
         menu.add(0, M.UNDO, 2, "Undo")
         menu.add(0, M.REDO, 3, "Redo")
         menu.add(0, M.PAGES, 4, "Pages (rotate, delete, move, split...)")
+        menu.add(0, M.WORD, 4, "Edit as Word document")
         menu.add(0, M.OCR, 5, "OCR - make scanned text searchable")
         menu.add(0, M.COPY_TEXT, 6, "Copy text of this page")
         menu.add(0, M.SAVE_COPY, 7, "Save a copy...")
@@ -446,6 +454,7 @@ class ViewerActivity : Activity(), PageView.Listener {
             menu.findItem(M.TEXTEDIT).isEnabled = eng.canModify
             menu.findItem(M.PRINT).isEnabled = eng.canPrint
             menu.findItem(M.COPY_TEXT).isEnabled = eng.canCopy
+            menu.findItem(M.WORD).isEnabled = eng.canCopy
             menu.findItem(M.PASSWORD).isEnabled = eng.canModify
             menu.findItem(M.SAVE_OVER).isEnabled = eng.dirty
             menu.findItem(M.PASSWORD).title = if (eng.password.isNullOrEmpty()) "Password protect..." else "Change / remove password..."
@@ -466,6 +475,7 @@ class ViewerActivity : Activity(), PageView.Listener {
                 else startActivity(Intent(this, OrganizeActivity::class.java))
             }
             M.OCR -> startOcr()
+            M.WORD -> convertToWord()
             M.COPY_TEXT -> copyPageText()
             M.SAVE_COPY -> saveCopy()
             M.SAVE_OVER -> saveOver()
@@ -1039,6 +1049,7 @@ class ViewerActivity : Activity(), PageView.Listener {
             if (!alive()) return@edit
             if (err != null) { showError("Could not add the OCR text", err); return@edit }
             pv.refresh(false); shownRevision = eng.revision; refreshTitle()
+            if (convertAfterOcr) { convertAfterOcr = false; makeWord(); return@edit }
             val text = results.joinToString("\n\n") { (i, w) -> "--- Page ${i + 1} ---\n" + TextLayer.rowsToText(TextLayer.groupRows(w)) }
             val msg = (if (partial) "Stopped early. " else "") + "Recognised text was added to ${results.size} page(s). " +
                 "The pages look the same, but the text can now be searched, selected and copied. " +
@@ -1048,6 +1059,55 @@ class ViewerActivity : Activity(), PageView.Listener {
                 .setNeutralButton("Copy all text") { _, _ -> copyToClipboard(text) }
                 .setNegativeButton("Share as .txt") { _, _ -> shareText(text) }
                 .show()
+        }
+    }
+
+    // ------------------------------------------------------------ Word
+    /** Open the text of this PDF as an editable Word document (OCR first for scanned pages). */
+    private fun convertToWord() {
+        val eng = engine ?: return
+        if (!eng.canCopy) { info("Not allowed", "The owner of this PDF does not allow copying its text."); return }
+        val wait = Progress(this, "Edit as Word")
+        wait.message("Looking for scanned pages...")
+        eng.async({ eng.scannedPages() }) { scanned, _ ->
+            wait.close()
+            if (!alive()) return@async
+            val s = scanned ?: emptyList()
+            if (s.isEmpty()) { makeWord(); return@async }
+            AlertDialog.Builder(this).setTitle("Scanned pages")
+                .setMessage("${s.size} page(s) are scanned pictures without text (pages ${describePages(s)}). " +
+                    "Their text must be read first (OCR). Read them now? The Word document opens when OCR is done.")
+                .setPositiveButton("Read with OCR") { _, _ ->
+                    if (!eng.canModify) { makeWord(); return@setPositiveButton }
+                    convertAfterOcr = true; startOcr()
+                }
+                .setNeutralButton("Skip them") { _, _ -> makeWord() }
+                .setNegativeButton("Cancel", null).show()
+        }
+    }
+
+    private fun makeWord() {
+        val eng = engine ?: return
+        val prog = Progress(this, "Edit as Word")
+        prog.message("Reading the text of ${eng.pageCount} page(s)...")
+        eng.async({
+            val n = eng.pageCount
+            PdfToWord.convert((0 until n).map { eng.pageOnEngine(it) }, (0 until n).toList())
+        }) { res, err ->
+            prog.close()
+            if (!alive()) return@async
+            if (res == null) { showError("Could not read the text", err); return@async }
+            try {
+                val dir = File(cacheDir, "word").apply { mkdirs() }
+                val f = File(dir, "conv_${System.currentTimeMillis()}.html")
+                f.writeText(res.html)
+                startActivity(Intent(this, WordActivity::class.java)
+                    .putExtra(WordActivity.EXTRA_HTML_FILE, f.absolutePath)
+                    .putExtra(WordActivity.EXTRA_TITLE, Files.stem(eng.displayName) + ".docx")
+                    .putExtra("pw", res.page.w).putExtra("ph", res.page.h)
+                    .putExtra("ml", res.page.ml).putExtra("mr", res.page.mr))
+                if (intent.getBooleanExtra(EXTRA_CONVERT, false) && !eng.dirty) finish()
+            } catch (t: Throwable) { showError("Could not open the Word document", t) }
         }
     }
 
@@ -1257,6 +1317,7 @@ class ViewerActivity : Activity(), PageView.Listener {
     }
 
     companion object {
+        const val EXTRA_CONVERT = "brb.convert_to_word"
         private const val REQ_SAVE = 11
         private const val REQ_IMAGE = 12
     }

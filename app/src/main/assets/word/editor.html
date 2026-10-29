@@ -1,0 +1,396 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=__VIEWPORT__">
+<style id="pagecss"></style>
+<style>
+html { background: #d6dae0; }
+body { margin: 0; padding: 12px 0 40px; }
+#page { background: #fff; margin: 0 auto; box-sizing: border-box; box-shadow: 0 1px 5px rgba(0,0,0,.28);
+        outline: none; white-space: pre-wrap; overflow-wrap: break-word; color: #000; line-height: 1.15;
+        tab-size: 48px; -moz-tab-size: 48px; caret-color: #2f6fdb; }
+#page p, #page li { margin: 0; }
+#page h1 { font-size: 26pt; font-weight: normal; color: #17365d; margin: 0 0 12pt; }
+#page h2 { font-size: 16pt; font-weight: bold; color: #365f91; margin: 18pt 0 6pt; }
+#page h3 { font-size: 13pt; font-weight: bold; color: #4f81bd; margin: 10pt 0 4pt; }
+#page h4 { font-size: 12pt; font-weight: bold; color: #4f81bd; margin: 10pt 0 4pt; }
+#page ul, #page ol { margin: 0; padding-left: 24pt; }
+#page blockquote { margin: 0 0 0 36pt; }
+table.t { border-collapse: collapse; margin: 2pt 0; table-layout: fixed; }
+table.t td, table.t th { border: 1px solid #000; padding: 1pt 5.4pt; vertical-align: top; min-width: 12pt; }
+table.nb td, table.nb th { border: 1px dashed #c5cad2; }
+hr.pb { border: none; border-top: 1px dashed #8a94a3; margin: 12pt 0; height: 0; overflow: visible; }
+hr.pb::after { content: "page break"; font: 9px sans-serif; color: #8a94a3; position: relative; top: -7px;
+               background: #fff; padding: 0 4px; float: right; }
+img { max-width: 100%; }
+img.sel { outline: 2px solid #2f6fdb; }
+@media print {
+  html, body { background: #fff; padding: 0; }
+  #page { box-shadow: none; width: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0; }
+  hr.pb { border: none; margin: 0; break-after: page; }
+  hr.pb::after { content: none; }
+  table.nb td, table.nb th { border: none; }
+  img.sel { outline: none; }
+}
+</style></head>
+<body><div id="page" contenteditable="true" spellcheck="false">__CONTENT__</div>
+<script>
+"use strict";
+var PAGE = __PAGE__;          // {w,h,ml,mt,mr,mb} in points
+var BASE = __BASE__;          // {font, size}
+var PX = 96 / 72;
+var page = document.getElementById('page');
+var lastImg = null;
+
+function setPage(p) {
+  PAGE = p;
+  page.style.width = (p.w * PX) + 'px';
+  page.style.minHeight = (p.h * PX) + 'px';
+  page.style.padding = (p.mt * PX) + 'px ' + (p.mr * PX) + 'px ' + (p.mb * PX) + 'px ' + (p.ml * PX) + 'px';
+  document.getElementById('pagecss').textContent =
+    '@page { size: ' + p.w + 'pt ' + p.h + 'pt; margin: ' + p.mt + 'pt ' + p.mr + 'pt ' + p.mb + 'pt ' + p.ml + 'pt; }';
+}
+setPage(PAGE);
+page.style.fontFamily = "'" + BASE.font + "'";
+page.style.fontSize = BASE.size + 'pt';
+document.execCommand('styleWithCSS', false, true);
+document.execCommand('defaultParagraphSeparator', false, 'p');
+
+function changed() { try { BRB.changed(); } catch (e) {} }
+page.addEventListener('input', changed);
+page.addEventListener('click', function (e) {
+  if (lastImg) lastImg.classList.remove('sel');
+  lastImg = null;
+  if (e.target.tagName === 'IMG') { lastImg = e.target; lastImg.classList.add('sel'); }
+});
+document.addEventListener('selectionchange', function () {
+  try {
+    BRB.state(JSON.stringify({
+      b: document.queryCommandState('bold'), i: document.queryCommandState('italic'),
+      u: document.queryCommandState('underline'), s: document.queryCommandState('strikeThrough'),
+      ul: document.queryCommandState('insertUnorderedList'), ol: document.queryCommandState('insertOrderedList')
+    }));
+  } catch (e) {}
+});
+
+function ensureFocus() {
+  var s = window.getSelection();
+  if (document.activeElement !== page || !s.rangeCount || !page.contains(s.anchorNode)) page.focus();
+}
+function cmd(name, value) { ensureFocus(); document.execCommand(name, false, value === undefined ? null : value); changed(); }
+
+function fontSize(pt) {
+  ensureFocus();
+  document.execCommand('fontSize', false, '7');
+  var els = page.querySelectorAll('font[size="7"], span[style*="xxx-large"]');
+  for (var k = 0; k < els.length; k++) {
+    var el = els[k];
+    if (el.tagName === 'FONT') { el.removeAttribute('size'); }
+    el.style.fontSize = pt + 'pt';
+  }
+  changed();
+}
+
+function block(tag) { cmd('formatBlock', '<' + tag + '>'); }
+
+function blocksInSelection() {
+  var sel = window.getSelection();
+  if (!sel.rangeCount) return [];
+  var r = sel.getRangeAt(0);
+  var out = [];
+  var all = page.querySelectorAll('p,h1,h2,h3,h4,li,div,blockquote');
+  for (var k = 0; k < all.length; k++) if (r.intersectsNode(all[k])) out.push(all[k]);
+  if (!out.length) {
+    var n = sel.anchorNode;
+    while (n && n !== page && !(n.nodeType === 1 && /^(P|H[1-4]|LI|DIV|BLOCKQUOTE)$/.test(n.tagName))) n = n.parentNode;
+    if (n && n !== page) out.push(n);
+  }
+  return out;
+}
+
+function lineSpacing(f) {
+  var bs = blocksInSelection();
+  for (var k = 0; k < bs.length; k++) bs[k].style.lineHeight = (f * 1.15).toFixed(3);
+  changed();
+}
+
+function insertTable(rows, cols) {
+  var inner = PAGE.w - PAGE.ml - PAGE.mr;
+  var w = (inner / cols).toFixed(1);
+  var h = '<table class="t"><colgroup>';
+  for (var c = 0; c < cols; c++) h += '<col style="width:' + w + 'pt">';
+  h += '</colgroup>';
+  for (var r = 0; r < rows; r++) {
+    h += '<tr>';
+    for (var c2 = 0; c2 < cols; c2++) h += '<td><p><br></p></td>';
+    h += '</tr>';
+  }
+  h += '</table><p><br></p>';
+  cmd('insertHTML', h);
+}
+
+function currentCell() {
+  var n = window.getSelection().anchorNode;
+  while (n && n !== page && !(n.nodeType === 1 && (n.tagName === 'TD' || n.tagName === 'TH'))) n = n.parentNode;
+  return n && n !== page ? n : null;
+}
+
+function tableOp(op) {
+  var cell = currentCell();
+  if (!cell) return 'nocell';
+  var row = cell.parentNode, table = row.closest('table');
+  var idx = cell.cellIndex;
+  function emptyCell() { var td = document.createElement('td'); td.innerHTML = '<p><br></p>'; return td; }
+  function dropCols() { var cg = table.querySelector('colgroup'); if (cg) cg.remove(); table.style.tableLayout = 'auto'; table.style.width = '100%'; }
+  if (op === 'rowAbove' || op === 'rowBelow') {
+    var tr = document.createElement('tr');
+    var n = 0;
+    for (var k = 0; k < row.cells.length; k++) n += row.cells[k].colSpan || 1;
+    for (var j = 0; j < n; j++) tr.appendChild(emptyCell());
+    row.parentNode.insertBefore(tr, op === 'rowAbove' ? row : row.nextSibling);
+  } else if (op === 'colLeft' || op === 'colRight') {
+    for (var r = 0; r < table.rows.length; r++) {
+      var cs = table.rows[r].cells;
+      var at = Math.min(op === 'colLeft' ? idx : idx + 1, cs.length);
+      table.rows[r].insertBefore(emptyCell(), cs[at] || null);
+    }
+    dropCols();
+  } else if (op === 'delRow') {
+    if (table.rows.length <= 1) { table.remove(); } else { row.remove(); }
+  } else if (op === 'delCol') {
+    for (var r2 = 0; r2 < table.rows.length; r2++) {
+      var c3 = table.rows[r2].cells[Math.min(idx, table.rows[r2].cells.length - 1)];
+      if (c3) c3.remove();
+    }
+    if (!table.querySelector('td,th')) table.remove(); else dropCols();
+  } else if (op === 'delTable') {
+    table.remove();
+  } else if (op === 'merge') {
+    var next = cell.nextElementSibling;
+    if (!next) return 'nonext';
+    cell.colSpan = (cell.colSpan || 1) + (next.colSpan || 1);
+    if (next.textContent.trim()) cell.insertAdjacentHTML('beforeend', next.innerHTML);
+    next.remove();
+  } else if (op === 'borders') {
+    table.classList.toggle('nb');
+  }
+  changed();
+  return 'ok';
+}
+
+function insertImage(src, wPt, hPt) {
+  cmd('insertHTML', '<img src="' + src + '" style="width:' + wPt.toFixed(1) + 'pt;height:' + hPt.toFixed(1) + 'pt">');
+}
+
+function resizeImage(f) {
+  if (!lastImg) return false;
+  var w = lastImg.getBoundingClientRect().width / PX, h = lastImg.getBoundingClientRect().height / PX;
+  lastImg.style.width = (w * f).toFixed(1) + 'pt';
+  lastImg.style.height = (h * f).toFixed(1) + 'pt';
+  changed();
+  return true;
+}
+
+function pageBreak() { cmd('insertHTML', '<hr class="pb"><p><br></p>'); }
+
+function findNext(text) { return window.find(text, false, false, true, false, false, false); }
+
+function replaceAll(a, b) {
+  if (!a) return 0;
+  var n = 0, walker = document.createTreeWalker(page, NodeFilter.SHOW_TEXT), nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  var low = a.toLowerCase();
+  for (var k = 0; k < nodes.length; k++) {
+    var t = nodes[k].nodeValue, out = '', i = 0, j;
+    while ((j = t.toLowerCase().indexOf(low, i)) >= 0) { out += t.substring(i, j) + b; i = j + a.length; n++; }
+    if (i > 0) nodes[k].nodeValue = out + t.substring(i);
+  }
+  if (n) changed();
+  return n;
+}
+
+// ------------------------------------------------------------------ serialize
+function px2pt(v) { return Math.round(parseFloat(v || '0') * 0.75 * 100) / 100; }
+function hex(c) {
+  var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(c || '');
+  if (!m || (m[4] !== undefined && parseFloat(m[4]) === 0)) return null;
+  return [m[1], m[2], m[3]].map(function (x) { return ('0' + parseInt(x, 10).toString(16)).slice(-2); }).join('').toUpperCase();
+}
+var BLOCK = /^(P|DIV|H[1-6]|LI|UL|OL|TABLE|BLOCKQUOTE|PRE|HR|ADDRESS|SECTION|ARTICLE|HEADER|FOOTER|TBODY|THEAD|TR)$/;
+function isBlock(n) { return n.nodeType === 1 && BLOCK.test(n.tagName); }
+var listCounter = 0;
+
+function runStyle(el, blockEl) {
+  var cs = getComputedStyle(el);
+  var r = {};
+  if (parseInt(cs.fontWeight, 10) >= 600) r.b = true;
+  if (cs.fontStyle === 'italic' || cs.fontStyle === 'oblique') r.i = true;
+  var col = hex(cs.color); if (col && col !== '000000') r.color = col;
+  var fam = (cs.fontFamily || '').split(',')[0].replace(/["']/g, '').trim();
+  if (fam) r.font = fam;
+  r.size = Math.round(parseFloat(cs.fontSize) * 0.75 * 2) / 2;
+  for (var a = el; a && a !== blockEl && a !== page; a = a.parentNode) {
+    var acs = getComputedStyle(a);
+    var deco = acs.textDecorationLine || acs.textDecoration || '';
+    if (deco.indexOf('underline') >= 0 || a.tagName === 'U') r.u = true;
+    if (deco.indexOf('line-through') >= 0 || a.tagName === 'S' || a.tagName === 'STRIKE') r.s = true;
+    if (!r.bg) { var bg = hex(acs.backgroundColor); if (bg) r.bg = bg; }
+    if (acs.verticalAlign === 'super' || a.tagName === 'SUP') r.sup = true;
+    if (acs.verticalAlign === 'sub' || a.tagName === 'SUB') r.sub = true;
+  }
+  if (r.sup || r.sub) delete r.size;
+  return r;
+}
+
+function sameStyle(a, b) {
+  var ka = Object.keys(a).filter(function (k) { return k !== 'text'; }), kb = Object.keys(b).filter(function (k) { return k !== 'text'; });
+  if (ka.length !== kb.length) return false;
+  for (var k = 0; k < ka.length; k++) if (a[ka[k]] !== b[ka[k]]) return false;
+  return true;
+}
+
+function imageData(img) {
+  var src = img.getAttribute('src') || '';
+  if (src.indexOf('data:') === 0) return src;
+  try {
+    var c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    return c.toDataURL('image/png');
+  } catch (e) { return null; }
+}
+
+function inlineRuns(nodes, blockEl) {
+  var runs = [];
+  function push(r) {
+    var last = runs[runs.length - 1];
+    if (last && last.text !== undefined && r.text !== undefined && sameStyle(last, r)) last.text += r.text;
+    else runs.push(r);
+  }
+  function walk(n) {
+    if (n.nodeType === 3) {
+      var t = n.nodeValue.replace(/\r?\n/g, ' ').replace(/​/g, '');
+      if (!t) return;
+      var r = runStyle(n.parentNode, blockEl); r.text = t; push(r);
+    } else if (n.nodeType === 1) {
+      if (n.tagName === 'BR') { runs.push({ br: true }); return; }
+      if (n.tagName === 'IMG') {
+        var d = imageData(n);
+        if (d) runs.push({ img: d, w: 0, h: 0, _el: n });
+        return;
+      }
+      if (n.tagName === 'SCRIPT' || n.tagName === 'STYLE') return;
+      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+    }
+  }
+  for (var k = 0; k < nodes.length; k++) walk(nodes[k]);
+  // picture sizes in points (CSS pixels * 0.75)
+  for (var j = 0; j < runs.length; j++) if (runs[j]._el) {
+    var b = runs[j]._el.getBoundingClientRect();
+    runs[j].w = Math.round(b.width * 0.75 * 10) / 10; runs[j].h = Math.round(b.height * 0.75 * 10) / 10;
+    delete runs[j]._el;
+  }
+  // the last <br> of a paragraph only keeps an empty line open
+  while (runs.length && runs[runs.length - 1].br) runs.pop();
+  return runs;
+}
+
+function paraFrom(el, nodes, ctx, out) {
+  var cs = getComputedStyle(el);
+  var p = { t: 'p', runs: inlineRuns(nodes, el) };
+  var tag = el.tagName;
+  if (tag === 'H1') p.style = 'Title'; else if (tag === 'H2') p.style = 'Heading1';
+  else if (tag === 'H3') p.style = 'Heading2'; else if (tag === 'H4' || tag === 'H5' || tag === 'H6') p.style = 'Heading3';
+  var al = cs.textAlign;
+  p.align = al === 'center' ? 'center' : (al === 'right' || al === 'end') ? 'right' : al === 'justify' ? 'justify' : 'left';
+  p.before = px2pt(cs.marginTop); p.after = px2pt(cs.marginBottom);
+  var bare = el === page || el.tagName === 'TD' || el.tagName === 'TH';
+  if (bare) { p.before = 0; p.after = 0; }
+  if (ctx.list) {
+    p.list = { type: ctx.list.type, level: ctx.list.level, id: ctx.list.id };
+  } else {
+    p.left = (bare ? 0 : px2pt(cs.marginLeft) + px2pt(cs.paddingLeft)) + (ctx.indent || 0);
+    p.right = bare ? 0 : px2pt(cs.marginRight);
+    p.first = px2pt(cs.textIndent);
+  }
+  var lh = el.style.lineHeight;
+  if (lh && /^[\d.]+$/.test(lh)) p.line = Math.round(parseFloat(lh) / 1.15 * 100) / 100;
+  if (ctx.pb) { p.pb = true; ctx.pb = false; }
+  out.push(p);
+}
+
+function walkBlocks(container, out, ctx) {
+  var inline = [];
+  function flush() {
+    if (!inline.length) return;
+    var hasContent = inline.some(function (n) { return n.nodeType === 1 || n.nodeValue.replace(/[\s​]/g, '').length; });
+    if (hasContent) paraFrom(container, inline, ctx, out);
+    inline = [];
+  }
+  for (var n = container.firstChild; n; n = n.nextSibling) {
+    if (!isBlock(n)) { if (n.nodeType === 1 || n.nodeType === 3) inline.push(n); continue; }
+    flush();
+    walkNode(n, out, ctx);
+  }
+  flush();
+}
+
+function walkNode(n, out, ctx) {
+  var tag = n.tagName;
+  if (tag === 'HR') { ctx.pb = true; return; }
+  if (tag === 'UL' || tag === 'OL') {
+    var lvl = ctx.list ? ctx.list.level + 1 : 0;
+    var id = ctx.list ? ctx.list.id : 'L' + (++listCounter);
+    var sub = { list: { type: tag === 'OL' ? 'number' : 'bullet', level: Math.min(lvl, 8), id: id }, pb: ctx.pb, indent: ctx.indent };
+    walkBlocks(n, out, sub);
+    ctx.pb = sub.pb;
+    return;
+  }
+  if (tag === 'TABLE') { tableFrom(n, out, ctx); return; }
+  if (tag === 'BLOCKQUOTE') {
+    var q = { indent: (ctx.indent || 0) + 36, list: ctx.list, pb: ctx.pb };
+    walkBlocks(n, out, q); ctx.pb = q.pb; return;
+  }
+  if (tag === 'TBODY' || tag === 'THEAD' || tag === 'TR' || tag === 'SECTION' || tag === 'ARTICLE' ||
+      tag === 'HEADER' || tag === 'FOOTER') { walkBlocks(n, out, ctx); return; }
+  // P / H* / LI / DIV ...: nested blocks (e.g. a list inside a list item) are walked with this element as container
+  for (var c = n.firstChild; c; c = c.nextSibling) if (isBlock(c)) { walkBlocks(n, out, ctx); return; }
+  var kids = [];
+  for (var c2 = n.firstChild; c2; c2 = c2.nextSibling) kids.push(c2);
+  paraFrom(n, kids, ctx, out);
+}
+
+function tableFrom(table, out, ctx) {
+  var t = { t: 'table', rows: [], widths: [], borders: !table.classList.contains('nb') };
+  var cols = table.querySelectorAll(':scope > colgroup > col');
+  for (var k = 0; k < cols.length; k++) t.widths.push(px2pt(getComputedStyle(cols[k]).width) || px2pt(cols[k].getBoundingClientRect().width));
+  if (!cols.length && table.rows.length) {
+    var r0 = table.rows[0].cells;
+    for (var j = 0; j < r0.length; j++) for (var s = 0; s < (r0[j].colSpan || 1); s++) t.widths.push(px2pt(r0[j].getBoundingClientRect().width / (r0[j].colSpan || 1)));
+  }
+  for (var r = 0; r < table.rows.length; r++) {
+    var row = [];
+    var cells = table.rows[r].cells;
+    for (var c = 0; c < cells.length; c++) {
+      var cell = { colspan: cells[c].colSpan || 1, rowspan: cells[c].rowSpan || 1, blocks: [] };
+      var bg = hex(cells[c].style.backgroundColor); if (bg) cell.bg = bg;
+      walkBlocks(cells[c], cell.blocks, {});
+      row.push(cell);
+    }
+    t.rows.push(row);
+  }
+  if (ctx.pb) { t.pb = true; ctx.pb = false; out.push({ t: 'p', pb: true, runs: [] }); }
+  out.push(t);
+}
+
+function serialize() {
+  listCounter = 0;
+  if (lastImg) lastImg.classList.remove('sel');
+  var blocks = [];
+  walkBlocks(page, blocks, {});
+  if (lastImg) lastImg.classList.add('sel');
+  return JSON.stringify({ page: PAGE, font: BASE.font, size: BASE.size, blocks: blocks });
+}
+
+function deliver(tag) { BRB.deliver(tag, serialize()); }
+</script>
+</body></html>

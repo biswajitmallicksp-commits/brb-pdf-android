@@ -1,4 +1,4 @@
-# BRB PDF for Android (version 1.0)
+# BRB PDF for Android (version 1.1)
 
 An offline PDF app for Android phones and tablets. It can:
 
@@ -110,6 +110,21 @@ If another app is already the default:
 | Remove confidential text | **Annotate → Redact area** (or select text → **Mark for redaction**), then ⋮ → **Apply redactions** |
 | Save | ⋮ → **Save a copy…** (safe), or **Save (replace original)**, which asks first |
 | Password | ⋮ → **Password protect…** saves a protected copy |
+
+### Word documents (new in 1.1)
+
+- **Convert PDF to Word** (start screen, or menu > *Edit as Word document* in a PDF): the text of the PDF opens
+  as an editable document - sizes, bold, centred titles; column rows (statements, forms) become tables.
+  Scanned pages are offered OCR first.
+- **New Word document** (start screen, or the second home-screen icon **BRB PDF Word**) and
+  **Open Word document** (.docx; also *Open with BRB PDF Word* from WhatsApp, Gmail, Files).
+- Tools: style (Normal, Title, Heading 1-3), font, size, B / I / U / S, colour, highlight, align, bullets,
+  numbering, indent, line spacing, tables (add / delete rows and columns, merge, borders), pictures (insert,
+  resize), page breaks, page setup (A4 / Letter / Legal, orientation, margins), find and replace, undo / redo.
+  Pinch to zoom.
+- **Save** writes the same .docx (or asks where, for a new document). **Save as Word**, **Share as Word**,
+  and **Save as PDF / Print** (choose *Save as PDF* on Android's print screen - the PDF has real text).
+- Not kept: headers / footers, footnotes, text boxes, comments, tracked changes. Old .doc files: save as .docx first.
 
 ### Important notes
 - **Edit text:** the changed words are really removed from the PDF and new words are written in the same place, size and colour, in the closest standard font (Helvetica, Times or Courier), so the letters can look slightly different from the original. Scanned pages are pictures and have no editable text.

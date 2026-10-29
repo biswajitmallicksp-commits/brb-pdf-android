@@ -46,7 +46,11 @@ class ShareProvider : ContentProvider() {
         return MatrixCursor(cols).apply { addRow(row.toTypedArray()) }
     }
 
-    override fun getType(uri: Uri): String = if (uri.toString().endsWith(".txt")) "text/plain" else "application/pdf"
+    override fun getType(uri: Uri): String = when {
+        uri.toString().endsWith(".txt") -> "text/plain"
+        uri.toString().endsWith(".docx") -> Docx.MIME
+        else -> "application/pdf"
+    }
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?) = 0

@@ -28,11 +28,17 @@ class MainActivity : Activity() {
         val blue = Color.rgb(47, 111, 219)
         val root = vbox(16)
         root.addView(label("BRB PDF", 26f, bold = true, color = blue))
-        root.addView(label("Read, annotate, sign, OCR and organise PDFs. Everything stays on this phone.", 14f).apply {
+        root.addView(label("Read, annotate, sign, OCR and organise PDFs, and edit Word documents. Everything stays on this phone.", 14f).apply {
             setPadding(0, dp(4), 0, dp(16))
         })
         root.addView(bigButton("Open a PDF", "From phone storage, Downloads, Drive...") { openPicker() })
         root.addView(bigButton("Combine PDFs", "Join several PDF files into one") { pickMerge() })
+        root.addView(label("Word documents", 17f, bold = true).apply { setPadding(0, dp(14), 0, dp(6)) })
+        root.addView(bigButton("Convert PDF to Word", "Edit the text of a PDF like a Word document (scanned PDFs: OCR first)") { pickConvert() })
+        root.addView(bigButton("New Word document", "A blank page - write, format, tables, pictures") {
+            startActivity(Intent(this, WordActivity::class.java))
+        })
+        root.addView(bigButton("Open Word document", "Open and edit a .docx file, save as Word or PDF") { pickWord() })
         root.addView(label("Recent files", 17f, bold = true).apply { setPadding(0, dp(20), 0, dp(6)) })
         recentBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(recentBox, lp())
@@ -70,7 +76,7 @@ class MainActivity : Activity() {
                 addView(label(r.name, 15f, bold = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
                 addView(label(DateUtils.getRelativeTimeSpanString(r.time).toString() +
                     if (r.lastPage > 0) "  -  page ${r.lastPage + 1}" else "", 12f, color = Color.GRAY))
-                setOnClickListener { openUri(Uri.parse(r.uri)) }
+                setOnClickListener { openUri(Uri.parse(r.uri), r.name) }
                 setOnLongClickListener {
                     askChoice(r.name, listOf("Remove from list")) { Store.removeRecent(this@MainActivity, r.uri); showRecents() }
                     true
@@ -96,7 +102,7 @@ class MainActivity : Activity() {
                 "analytics. Your documents are processed only on this phone and are never uploaded.\n\n" +
                 "Files you open are copied to the app's private storage while you work on them; the original is " +
                 "changed only if you choose 'Save (replace original)'. Temporary copies are deleted automatically.")
-            3 -> info("About", "BRB PDF 1.0\n\nUses MuPDF (AGPL-3.0, Artifex Software) and Tesseract OCR " +
+            3 -> info("About", "BRB PDF 1.1\n\nUses MuPDF (AGPL-3.0, Artifex Software) and Tesseract OCR " +
                 "(Apache-2.0) through Tesseract4Android (Apache-2.0). See README / THIRD_PARTY_LICENSES.\n\n" +
                 "Signatures added with this app are pictures of a signature. They are not digital (cryptographic) " +
                 "signatures.")
@@ -111,7 +117,22 @@ class MainActivity : Activity() {
         try { startActivityForResult(i, REQ_OPEN) } catch (e: Exception) { toast("No app to pick files.") }
     }
 
-    private fun openUri(uri: Uri) {
+    private fun pickWord() {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(Docx.MIME)
+        try { startActivityForResult(i, REQ_WORD) } catch (e: Exception) { toast("No app to pick files.") }
+    }
+
+    private fun pickConvert() {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/pdf")
+        try { startActivityForResult(i, REQ_CONVERT) } catch (e: Exception) { toast("No app to pick files.") }
+    }
+
+    private fun openUri(uri: Uri, name: String? = null) {
+        if (WordActivity.isWordName(name ?: Store.recents(this).firstOrNull { it.uri == uri.toString() }?.name ?: "")) {
+            startActivity(Intent(this, WordActivity::class.java).setData(uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION))
+            return
+        }
         val i = Intent(this, ViewerActivity::class.java).setData(uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         startActivity(i)
@@ -229,6 +250,19 @@ class MainActivity : Activity() {
                 showMergeList()
             }
             REQ_MERGE_SAVE -> data.data?.let { runMerge(it) }
+            REQ_WORD -> data.data?.let { uri ->
+                Files.takePermission(this, uri, true)
+                val name = Files.displayName(this, uri)
+                Store.addRecent(this, uri, name)
+                openUri(uri, name.takeIf { WordActivity.isWordName(it) } ?: "$name.docx")
+            }
+            REQ_CONVERT -> data.data?.let { uri ->
+                Files.takePermission(this, uri, true)
+                Store.addRecent(this, uri, Files.displayName(this, uri))
+                startActivity(Intent(this, ViewerActivity::class.java).setData(uri)
+                    .putExtra(ViewerActivity.EXTRA_CONVERT, true)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION))
+            }
         }
     }
 
@@ -236,5 +270,7 @@ class MainActivity : Activity() {
         private const val REQ_OPEN = 1
         private const val REQ_MERGE_PICK = 2
         private const val REQ_MERGE_SAVE = 3
+        private const val REQ_WORD = 4
+        private const val REQ_CONVERT = 5
     }
 }
