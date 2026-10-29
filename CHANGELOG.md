@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0 - BRB PDF Word: open, edit and create Word documents (2026-10-29)
+
+### Added
+- **Word documents inside BRB PDF**, all offline. A start screen (shown when nothing is open) with **Open PDF**, **Convert PDF to Word**, **New Word document**, **Open Word document** and the recent PDF and Word files.
+- **Open .docx files** from File > Open, File > Open Word Document (Ctrl+Shift+O), the start screen, drag and drop, the command line or Windows "Open with". Kept: text with fonts, sizes, bold / italic / underline / strike, colours, highlight, Title and Heading styles, alignment, indents, spacing, line spacing, tab stops, bulleted and numbered lists, tables (merged cells, column widths), pictures, page breaks, page size and margins. Old .doc files get a clear message (save them as .docx in Word first).
+- **Word-like editor**: style, font and size boxes; B / I / U / S, superscript, subscript, font colour, highlight, clear formatting; left / centre / right / justify; bullets, numbering, indent; line spacing; insert table (add / delete rows and columns, merge and split cells); insert or paste pictures and resize them; page breaks; page setup (A4 / Letter / Legal, portrait / landscape, margins in cm); find and replace; print. Dashed lines show where each page begins; the status bar shows "Page x of y" and the word count.
+- **Save** (Ctrl+S) writes the same .docx; **Save As** chooses a new Word file or a PDF; **Export as PDF** writes a PDF with real, searchable text, tables with borders, pictures and bullets. A new document asks for a name on its first save. Closing with unsaved changes asks Save / Don't Save / Cancel.
+- **New Word Document** (Ctrl+N) and **Convert PDF to Word** (Ctrl+Alt+D: choose a PDF; scanned pages are offered OCR first).
+- Word windows are separate windows with their own taskbar button. `PDFWorkbench.exe --word` (Start menu / desktop shortcut **BRB PDF Word**) opens just a new Word document; double-clicking a .docx opens just the Word window.
+- Installer: Start menu shortcut **BRB PDF Word**, optional desktop shortcut, optional "Open with" entry for .docx files.
+- The PDF-to-Word editor (0.7) gets the same tools and uses the same Word / PDF writers.
+- Tests: `tests/test_word.py`; the build machine's self-test also opens, saves and exports a Word document.
+
 ## 0.7.0 - OCR result shown first, editable Word-like document (2026-10-23)
 
 ### Added

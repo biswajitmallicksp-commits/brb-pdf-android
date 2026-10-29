@@ -21,6 +21,23 @@ bank-statement analysis arrive next (see *Roadmap* below).
 
 
 
+## Word documents (BRB PDF Word)
+
+Open Word files and write new ones without Microsoft Word - everything stays on this computer.
+
+| To... | Do this |
+|---|---|
+| Open a Word file | **File > Open Word Document** (Ctrl+Shift+O), the start screen, drag it onto the window, or right-click a .docx > *Open with* > BRB PDF |
+| Start a new document | **File > New Word Document** (Ctrl+N), or the **BRB PDF Word** shortcut |
+| Turn a PDF into Word | **File > Convert PDF to Word** (Ctrl+Alt+D) - scanned PDFs are read with OCR first |
+| Save | **Ctrl+S** saves the same .docx. **Save As** for a new name or a PDF; **Export as PDF** for a PDF copy |
+
+Tools: styles (Title, Heading 1-3), fonts, sizes, bold / italic / underline / strike, colour, highlight,
+alignment, bullets and numbering, indents, line spacing, tables (rows, columns, merge), pictures (insert,
+paste, resize), page breaks, page setup (paper size, orientation, margins), find & replace, print.
+Dashed lines show where pages begin. Not supported yet: headers/footers, footnotes, text boxes, comments
+and tracked changes (they are not kept when saving). Old .doc files: save them as .docx in Word first.
+
 ## Edit as Word document (OCR result or any PDF)
 
 1. **OCR > Make Searchable PDF**: keep *Show the result first* (and tick *Also open the text as an editable

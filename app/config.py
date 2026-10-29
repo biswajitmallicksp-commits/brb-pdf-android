@@ -14,7 +14,7 @@ from pathlib import Path
 
 APP_NAME = "BRB PDF"
 APP_ID = "PDFWorkbench"
-APP_VERSION = "0.7.0"
+APP_VERSION = "0.8.0"
 APP_PHASE = "Viewer, OCR, pages, editing, Word-like documents, AI and analysis"
 
 

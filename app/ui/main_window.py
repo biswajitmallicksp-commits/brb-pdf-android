@@ -50,7 +50,8 @@ from app.utils.errors import PasswordRequired, WorkbenchError, WrongPassword, de
 
 log = logging.getLogger("pdfworkbench.window")
 
-PDF_FILTER = "PDF documents (*.pdf);;All files (*)"
+PDF_FILTER = "PDF or Word (*.pdf *.docx);;PDF documents (*.pdf);;Word documents (*.docx);;All files (*)"
+WORD_EXT = (".docx", ".doc")
 
 # Menus for later phases: shown now so the structure is visible, disabled until built.
 FUTURE_TOOLS = ("a later phase", ["Compare documents", "Optimise / compress", "Repair", "Forms",
@@ -78,7 +79,8 @@ class MainWindow(QMainWindow):
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.stack = QStackedWidget()
-        self.stack.addWidget(self._make_empty_state())   # index 0: welcome text
+        self.start_page = self._make_empty_state()
+        self.stack.addWidget(self.start_page)            # index 0: start screen
         self.stack.addWidget(self.tabs)                  # index 1: documents
         self.setCentralWidget(self.stack)
 
@@ -131,16 +133,15 @@ class MainWindow(QMainWindow):
         self._update_ui()
 
     # ============================================================== building
-    def _make_empty_state(self) -> QLabel:
-        label = QLabel(
-            "<div style='text-align:center'>"
-            f"<p style='font-size:20px; font-weight:600'>{config.APP_NAME}</p>"
-            "<p>Open a PDF with <b>Ctrl+O</b>, or drag PDF files onto this window.</p>"
-            "<p style='color:gray'>Everything is processed on this computer. Nothing is uploaded.</p>"
-            "</div>"
-        )
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        return label
+    def _make_empty_state(self):
+        from app.ui.start_page import StartPage
+        page = StartPage(self.db.recent_files)
+        page.openPdf.connect(self.open_dialog)
+        page.newWord.connect(self.new_word_document)
+        page.openWord.connect(self.open_word_dialog)
+        page.pdfToWord.connect(self.convert_pdf_to_word)
+        page.openRecent.connect(self.open_file)
+        return page
 
     def _act(self, key: str, text: str, slot, shortcut=None, icon: str | None = None,
              checkable: bool = False, tip: str | None = None) -> QAction:
@@ -164,7 +165,13 @@ class MainWindow(QMainWindow):
     def _create_actions(self) -> None:
         A = self._act
         S = QKeySequence.StandardKey
-        A("open", "&Open...", self.open_dialog, S.Open, "open", tip="Open PDF files")
+        A("open", "&Open...", self.open_dialog, S.Open, "open", tip="Open PDF or Word files")
+        A("word_new", "&New Word Document", self.new_word_document, S.New,
+          tip="Start a blank Word document")
+        A("word_open", "Open &Word Document...", self.open_word_dialog, "Ctrl+Shift+O",
+          tip="Open a Word (.docx) document to edit it")
+        A("pdf_to_word", "Con&vert PDF to Word...", self.convert_pdf_to_word, "Ctrl+Alt+D",
+          tip="Choose a PDF and turn it into an editable Word document")
         A("save", "&Save", self.save, S.Save, "save", tip="Save")
         A("save_as", "Save &As...", self.save_as, "Ctrl+Shift+S", tip="Save a copy under a new name")
         A("print", "&Print...", self.print_document, S.Print, "print", tip="Print")
@@ -302,7 +309,7 @@ class MainWindow(QMainWindow):
     def _create_menus(self) -> None:
         mb = self.menuBar()
         m = mb.addMenu("&File")
-        for k in ("open",):
+        for k in ("word_new", "open", "word_open"):
             m.addAction(self.actions[k])
         self.recent_menu = m.addMenu("Open &Recent")
         self.recent_menu.aboutToShow.connect(self._fill_recent_menu)
@@ -311,6 +318,7 @@ class MainWindow(QMainWindow):
             m.addAction(self.actions[k])
         m.addSeparator()
         m.addAction(self.actions["merge"])
+        m.addAction(self.actions["pdf_to_word"])
         m.addSeparator()
         m.addAction(self.actions["print"])
         m.addSeparator()
@@ -545,7 +553,7 @@ class MainWindow(QMainWindow):
 
     def open_dialog(self) -> None:
         start = self.db.get_setting("last_dir", str(Path.home()))
-        files, _ = QFileDialog.getOpenFileNames(self, "Open PDF", start, PDF_FILTER)
+        files, _ = QFileDialog.getOpenFileNames(self, "Open", start, PDF_FILTER)
         if files:
             self.db.set_setting("last_dir", str(Path(files[0]).parent))
             self.open_files(files)
@@ -556,6 +564,11 @@ class MainWindow(QMainWindow):
 
     def open_file(self, path: str) -> DocumentTab | None:
         path = os.path.abspath(path)
+        if path.lower().endswith(WORD_EXT):
+            self.open_word(path)
+            return None
+        if not self.isVisible():                 # started for a Word document only: show BRB PDF now
+            self.show()
         # already open? just switch to it
         for i in range(self.tabs.count()):
             tab = self.tabs.widget(i)
@@ -1336,6 +1349,73 @@ class MainWindow(QMainWindow):
         finally:
             QApplication.restoreOverrideCursor()
 
+    # ------------------------------------------------------------ Word documents
+    def new_word_document(self):
+        folder = Path(self.db.get_setting("last_dir", str(Path.home())))
+        win = DocEditorWindow.new_document(self, folder)
+        self._track_doc_window(win)
+        return win
+
+    def open_word_dialog(self) -> None:
+        start = self.db.get_setting("last_dir", str(Path.home()))
+        files, _ = QFileDialog.getOpenFileNames(self, "Open Word Document", start,
+                                                "Word documents (*.docx);;All files (*)")
+        if files:
+            self.db.set_setting("last_dir", str(Path(files[0]).parent))
+            for f in files:
+                self.open_word(f)
+
+    def open_word(self, path: str):
+        """Open a .docx in the Word editor (or bring it to the front if it is open already)."""
+        from app.word.docx_io import DocxError
+        p = Path(path).resolve()
+        for w in self._doc_windows:
+            if getattr(w, "path", None) is not None and Path(w.path).resolve() == p:
+                w.showNormal()
+                w.raise_()
+                w.activateWindow()
+                return w
+        if not p.exists():
+            QMessageBox.warning(self, "Open", f"{p.name} was not found.\n\n{p.parent}")
+            self.db.remove_recent(str(path))
+            return None
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            win = DocEditorWindow.open_docx(self, p)
+        except DocxError as exc:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self, "Open Word document", str(exc))
+            return None
+        except Exception as exc:
+            QApplication.restoreOverrideCursor()
+            log_exception("open Word", exc)
+            QMessageBox.warning(self, "Open Word document", f"{p.name} could not be opened:\n{exc}")
+            return None
+        QApplication.restoreOverrideCursor()
+        self.db.set_setting("last_dir", str(p.parent))
+        self._track_doc_window(win)
+        return win
+
+    def convert_pdf_to_word(self) -> None:
+        """Choose a PDF, open it, and open its text as an editable Word document (OCR first if scanned)."""
+        start = self.db.get_setting("last_dir", str(Path.home()))
+        path, _ = QFileDialog.getOpenFileName(self, "Convert PDF to Word - choose the PDF", start,
+                                              "PDF documents (*.pdf)")
+        if not path:
+            return
+        self.db.set_setting("last_dir", str(Path(path).parent))
+        tab = self.open_file(path)
+        if tab is None:
+            return
+        if tab.scanned_pages is None:
+            # the background check for scanned pages may not have finished yet: check now
+            try:
+                tab.scanned_pages = tab.doc.run_read(
+                    lambda d: [i for i in range(d.page_count) if not d[i].get_text("text").strip()])
+            except Exception:
+                tab.scanned_pages = []
+        self.edit_as_document(tab)
+
     def ocr_current_page(self) -> None:
         tab = self.current_tab()
         if tab is None or self._ocr_needs_saved(tab):
@@ -2070,11 +2150,13 @@ class MainWindow(QMainWindow):
         box.exec()
 
     def dragEnterEvent(self, event) -> None:
-        if event.mimeData().hasUrls() and any(u.toLocalFile().lower().endswith(".pdf") for u in event.mimeData().urls()):
+        if event.mimeData().hasUrls() and any(u.toLocalFile().lower().endswith((".pdf",) + WORD_EXT)
+                                              for u in event.mimeData().urls()):
             event.acceptProposedAction()
 
     def dropEvent(self, event) -> None:
-        files = [u.toLocalFile() for u in event.mimeData().urls() if u.toLocalFile().lower().endswith(".pdf")]
+        files = [u.toLocalFile() for u in event.mimeData().urls()
+                 if u.toLocalFile().lower().endswith((".pdf",) + WORD_EXT)]
         self.open_files(files)
         event.acceptProposedAction()
 

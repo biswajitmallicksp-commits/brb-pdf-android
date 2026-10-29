@@ -1,6 +1,7 @@
 """PDF Workbench - entry point.
 
-Run from source:   run.bat          (or: python main.py [file.pdf ...])
+Run from source:   run.bat          (or: python main.py [file.pdf | file.docx ...])
+Word only:         PDFWorkbench.exe --word   (a new Word document, without the PDF window)
 Built program:     dist\\PDFWorkbench\\PDFWorkbench.exe
 """
 from __future__ import annotations
@@ -59,6 +60,12 @@ def selftest(folder: str) -> int:
     doc_export.save_docx(qd, out / "selftest.docx")
     doc_export.save_pdf(qd, out / "selftest.pdf")
     ok = "Self test" in fitz.open(out / "selftest.pdf")[0].get_text()
+    # Word editor: open the .docx again, save it, export a PDF
+    from app.word import docx_io, pdf_out
+    wd = docx_io.load_docx(out / "selftest.docx")
+    docx_io.save_docx(wd, out / "selftest2.docx")
+    pdf_out.save_pdf(docx_io.load_docx(out / "selftest2.docx"), out / "selftest2.pdf")
+    ok = ok and "Self test" in fitz.open(out / "selftest2.pdf")[0].get_text()
     (out / "selftest.txt").write_text("OK" if ok else "FAILED", encoding="utf-8")
     return 0 if ok else 1
 
@@ -113,10 +120,19 @@ def main() -> int:
     from app.ui.main_window import MainWindow
 
     window = MainWindow(db)
-    window.show()
     files = [a for a in sys.argv[1:] if not a.startswith("-")]
-    if files:
-        QTimer.singleShot(0, lambda: window.open_files(files))
+    word_only = "--word" in sys.argv or (files and all(f.lower().endswith((".docx", ".doc")) for f in files))
+    if word_only:
+        # "BRB PDF Word" shortcut or a Word file double-clicked: just the Word window
+        if files:
+            QTimer.singleShot(0, lambda: window.open_files(files))
+        else:
+            QTimer.singleShot(0, window.new_word_document)
+        QTimer.singleShot(1500, lambda: window.show() if not window._doc_windows else None)
+    else:
+        window.show()
+        if files:
+            QTimer.singleShot(0, lambda: window.open_files(files))
     code = app.exec()
     db.close()
     logging.getLogger("pdfworkbench").info("Exited with code %s", code)
