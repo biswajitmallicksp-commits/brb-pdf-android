@@ -43,6 +43,25 @@
             </intent-filter>
         </activity>
 
+        <!-- Images to PDF; also in the gallery's Share menu -->
+        <activity
+            android:name=".ImagesActivity"
+            android:exported="true"
+            android:label="Images to PDF"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
         <!-- Word documents: opens .docx from file managers, WhatsApp, Gmail ("Open with BRB PDF") -->
         <activity
             android:name=".WordActivity"

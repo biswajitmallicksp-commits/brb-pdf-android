@@ -33,6 +33,9 @@ class MainActivity : Activity() {
         })
         root.addView(bigButton("Open a PDF", "From phone storage, Downloads, Drive...") { openPicker() })
         root.addView(bigButton("Combine PDFs", "Join several PDF files into one") { pickMerge() })
+        root.addView(bigButton("Images to PDF", "Photos, PNG or JPG pictures - several pictures into one PDF") {
+            startActivity(Intent(this, ImagesActivity::class.java))
+        })
         root.addView(label("Word documents", 17f, bold = true).apply { setPadding(0, dp(14), 0, dp(6)) })
         root.addView(bigButton("Convert PDF to Word", "Edit the text of a PDF like a Word document (scanned PDFs: OCR first)") { pickConvert() })
         root.addView(bigButton("New Word document", "A blank page - write, format, tables, pictures") {

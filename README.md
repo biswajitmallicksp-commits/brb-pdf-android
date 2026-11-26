@@ -111,6 +111,13 @@ If another app is already the default:
 | Save | ⋮ → **Save a copy…** (safe), or **Save (replace original)**, which asks first |
 | Password | ⋮ → **Password protect…** saves a protected copy |
 
+### Images to PDF (new in 1.2)
+
+- Start screen > **Images to PDF**, or in the Gallery select photos > **Share** > **Images to PDF**.
+- Add photos / PNG / JPG pictures (several at once), put them in order (arrows), remove any, then **Create PDF**.
+- **Options**: page size A4, Letter or the same size as each picture; margin; original quality or a smaller file
+  (good for email and WhatsApp). Camera photos are turned the right way up automatically.
+
 ### Word documents (new in 1.1)
 
 - **Convert PDF to Word** (start screen, or menu > *Edit as Word document* in a PDF): the text of the PDF opens
