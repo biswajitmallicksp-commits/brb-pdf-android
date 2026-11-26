@@ -112,6 +112,7 @@ jobs:
           Run-Test "AI panel" @("tests\test_ai_ui.py")
           Run-Test "editable document" @("tests\test_doc_editor.py")
           Run-Test "Word documents" @("tests\test_word.py")
+          Run-Test "images to PDF" @("tests\test_images_pdf.py")
 
       - name: Live test with the real local AI model
         shell: pwsh
