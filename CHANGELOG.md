@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0 - Images to PDF (2026-11-27)
+
+### Added
+- **Images to PDF** (start screen, File > Images to PDF, Ctrl+Alt+I, or drop pictures onto the window): add
+  several photos / PNG / JPG / BMP / TIFF / WEBP pictures, see them as thumbnails, put them in order (drag, Move
+  earlier / later, Sort by name), and make one PDF with one picture per page.
+- Options: page size A4, Letter, Legal or the same size as each picture; margin none / small / normal; original
+  quality or a smaller file for email and WhatsApp. Wide pictures get landscape pages; camera photos are turned
+  upright. Pictures that cannot be read are left out and listed.
+- Tests: `tests/test_images_pdf.py`.
+
 ## 0.8.0 - BRB PDF Word: open, edit and create Word documents (2026-10-29)
 
 ### Added

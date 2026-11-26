@@ -21,6 +21,12 @@ bank-statement analysis arrive next (see *Roadmap* below).
 
 
 
+## Images to PDF
+
+**File > Images to PDF** (Ctrl+Alt+I), the start screen, or drop pictures onto the window. Add photos / PNG / JPG
+files, put them in order (drag them, or Move earlier / later, Sort by name), choose the page size (A4, Letter,
+Legal, or the picture's own size), the margin and the file size, then **Create PDF**. One picture per page.
+
 ## Word documents (BRB PDF Word)
 
 Open Word files and write new ones without Microsoft Word - everything stays on this computer.

@@ -5,7 +5,7 @@ import logging
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QSize, Qt, QUrl
+from PySide6.QtCore import QByteArray, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QIcon, QKeySequence
 from PySide6.QtPrintSupport import QAbstractPrintDialog, QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
@@ -140,6 +140,7 @@ class MainWindow(QMainWindow):
         page.newWord.connect(self.new_word_document)
         page.openWord.connect(self.open_word_dialog)
         page.pdfToWord.connect(self.convert_pdf_to_word)
+        page.imagesToPdf.connect(lambda: self.images_to_pdf())
         page.openRecent.connect(self.open_file)
         return page
 
@@ -243,6 +244,8 @@ class MainWindow(QMainWindow):
         A("pg_extract", "&Extract Pages...", self.extract_pages, "Ctrl+E", "extract",
           tip="Save selected pages as a new PDF")
         A("pg_split", "&Split Document...", self.split_document, tip="Split into several PDFs")
+        A("images_pdf", "&Images to PDF (photos, PNG, JPG)...", self.images_to_pdf, "Ctrl+Alt+I",
+          tip="Make one PDF from several pictures, one picture per page")
         A("merge", "Co&mbine Files into One PDF...", self.merge_files, "Ctrl+M", "merge",
           tip="Combine several PDFs and images into one PDF")
 
@@ -318,6 +321,7 @@ class MainWindow(QMainWindow):
             m.addAction(self.actions[k])
         m.addSeparator()
         m.addAction(self.actions["merge"])
+        m.addAction(self.actions["images_pdf"])
         m.addAction(self.actions["pdf_to_word"])
         m.addSeparator()
         m.addAction(self.actions["print"])
@@ -1069,6 +1073,41 @@ class MainWindow(QMainWindow):
             self.open_file(str(result))
         else:
             QMessageBox.information(self, "Combine files", f"Saved:\n{result}")
+
+    def images_to_pdf(self, initial: list[str] | None = None) -> None:
+        from app.ui.images_dialog import ImagesToPdfDialog
+        start = self.db.get_setting("last_dir", str(Path.home()))
+        dlg = ImagesToPdfDialog(start, initial, self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        files, out, opts = dlg.files(), dlg.output.text().strip(), dlg.options()
+        self.db.set_setting("last_dir", str(Path(out).parent))
+        progress = QProgressDialog("Making the PDF...", "Cancel", 0, len(files), self)
+        progress.setWindowTitle("Images to PDF")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(400)
+
+        def step(done: int, total: int) -> bool:
+            progress.setValue(done)
+            progress.setLabelText(f"Adding picture {min(done + 1, total)} of {total}")
+            QApplication.processEvents()
+            return not progress.wasCanceled()
+
+        try:
+            result, skipped = ops.images_to_pdf(files, out, opts["page_size"], opts["margin"], opts["smaller"], step)
+        except Exception as exc:
+            progress.close()
+            self._show_error("Images to PDF", exc)
+            return
+        progress.close()
+        self.statusBar().showMessage(f"Made {result} from {len(files) - len(skipped)} pictures", 8000)
+        if skipped:
+            QMessageBox.warning(self, "Images to PDF", "These pictures could not be read and were left out:\n"
+                                + "\n".join(skipped))
+        if dlg.open_after.isChecked():
+            self.open_file(str(result))
+        elif not skipped:
+            QMessageBox.information(self, "Images to PDF", f"Saved:\n{result}")
 
     # ================================================================ printing
     def print_document(self) -> None:
@@ -2150,15 +2189,20 @@ class MainWindow(QMainWindow):
         box.exec()
 
     def dragEnterEvent(self, event) -> None:
-        if event.mimeData().hasUrls() and any(u.toLocalFile().lower().endswith((".pdf",) + WORD_EXT)
+        from app.ui.images_dialog import IMAGE_EXT
+        if event.mimeData().hasUrls() and any(u.toLocalFile().lower().endswith((".pdf",) + WORD_EXT + IMAGE_EXT)
                                               for u in event.mimeData().urls()):
             event.acceptProposedAction()
 
     def dropEvent(self, event) -> None:
-        files = [u.toLocalFile() for u in event.mimeData().urls()
-                 if u.toLocalFile().lower().endswith((".pdf",) + WORD_EXT)]
-        self.open_files(files)
+        from app.ui.images_dialog import IMAGE_EXT
+        paths = [u.toLocalFile() for u in event.mimeData().urls()]
+        files = [f for f in paths if f.lower().endswith((".pdf",) + WORD_EXT)]
+        pictures = [f for f in paths if f.lower().endswith(IMAGE_EXT)]
         event.acceptProposedAction()
+        self.open_files(files)
+        if pictures:                    # pictures dropped on the window: make a PDF from them
+            QTimer.singleShot(0, lambda: self.images_to_pdf(pictures))
 
     def _restore_window(self) -> None:
         geo = self.db.get_setting("geometry")

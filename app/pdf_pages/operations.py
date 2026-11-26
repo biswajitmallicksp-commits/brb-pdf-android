@@ -372,6 +372,81 @@ def merge_files(sources: Sequence[MergeSource], output: str | os.PathLike, add_b
         out.close()
 
 
+# ============================================================ images -> PDF
+PAGE_SIZES_PT = {"a4": (595.28, 841.89), "letter": (612.0, 792.0), "legal": (612.0, 1008.0)}
+MARGINS_PT = {"none": 0.0, "small": 18.0, "normal": 36.0}
+
+
+def _image_bytes(path: Path, max_side: int | None, jpeg_quality: int) -> tuple[bytes, int, int]:
+    """The picture as PNG/JPEG bytes, turned upright (camera photos), optionally made smaller."""
+    from PySide6.QtCore import QBuffer, QByteArray, QIODevice
+    from PySide6.QtGui import QImage, QImageReader
+    from PySide6.QtCore import Qt
+
+    reader = QImageReader(str(path))
+    reader.setAutoTransform(True)                       # EXIF orientation
+    img = reader.read()
+    if img.isNull():
+        raise PageOpError(f"{path.name} could not be read as a picture ({reader.errorString()}).")
+    turned = reader.transformation().value != 0
+    big = max_side is not None and max(img.width(), img.height()) > max_side
+    suffix = path.suffix.lower()
+    if not turned and not big and max_side is None and suffix in (".jpg", ".jpeg", ".png"):
+        return path.read_bytes(), img.width(), img.height()        # original quality, as it is
+    if big:
+        img = img.scaled(max_side, max_side, Qt.AspectRatioMode.KeepAspectRatio,
+                         Qt.TransformationMode.SmoothTransformation)
+    alpha = img.hasAlphaChannel()
+    data = QByteArray()
+    buf = QBuffer(data)
+    buf.open(QIODevice.OpenModeFlag.WriteOnly)
+    if alpha:
+        img.save(buf, "PNG")
+    else:
+        img.convertToFormat(QImage.Format.Format_RGB888).save(buf, "JPEG", jpeg_quality)
+    buf.close()
+    return bytes(data), img.width(), img.height()
+
+
+def images_to_pdf(paths: Sequence[str | os.PathLike], output: str | os.PathLike, page_size: str = "a4",
+                  margin: str = "small", smaller: bool = False,
+                  progress: Callable[[int, int], bool] | None = None) -> tuple[Path, list[str]]:
+    """One page per picture, in the given order. page_size: a4 / letter / legal / fit (page = picture size).
+    Pages turn to landscape for wide pictures. Returns (saved file, pictures that could not be read)."""
+    if not paths:
+        raise PageOpError("Add at least one picture.")
+    out = fitz.open()
+    skipped: list[str] = []
+    try:
+        for k, p in enumerate(paths):
+            p = Path(p)
+            if progress is not None and progress(k, len(paths)) is False:
+                raise PageOpError("Cancelled.")
+            try:
+                data, iw, ih = _image_bytes(p, 2000 if smaller else None, 80 if smaller else 92)
+            except Exception as exc:
+                log.warning("picture skipped: %s (%s)", p, exc)
+                skipped.append(p.name)
+                continue
+            if page_size == "fit":
+                scale = min(1.0, 1190.0 / max(iw * 72 / 150, ih * 72 / 150))   # 150 dpi, at most A3
+                pw, ph = iw * 72 / 150 * scale, ih * 72 / 150 * scale
+                m = 0.0
+            else:
+                short, long_ = PAGE_SIZES_PT.get(page_size, PAGE_SIZES_PT["a4"])
+                pw, ph = (long_, short) if iw > ih else (short, long_)
+                m = MARGINS_PT.get(margin, 18.0)
+            page = out.new_page(width=pw, height=ph)
+            page.insert_image(fitz.Rect(m, m, pw - m, ph - m), stream=data, keep_proportion=True)
+        if out.page_count == 0:
+            raise PageOpError("None of the pictures could be read.")
+        if progress is not None:
+            progress(len(paths), len(paths))
+        return save_new(out, output), skipped
+    finally:
+        out.close()
+
+
 def _fix_toc_levels(toc: list[list]) -> list[list]:
     """PyMuPDF requires each level to be at most one deeper than the previous."""
     fixed, prev = [], 0

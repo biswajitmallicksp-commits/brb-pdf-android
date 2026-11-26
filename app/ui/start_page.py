@@ -21,6 +21,7 @@ class StartPage(QWidget):
     newWord = Signal()
     openWord = Signal()
     pdfToWord = Signal()
+    imagesToPdf = Signal()
     openRecent = Signal(str)
 
     def __init__(self, recent_files, parent=None):
@@ -45,6 +46,8 @@ class StartPage(QWidget):
              "#185abd", "#eaf1fb", self.newWord),
             ("Open Word document", "Open and edit a .docx file, save as Word or PDF", "#185abd", "#eaf1fb",
              self.openWord),
+            ("Images to PDF", "Photos, PNG or JPG pictures - several pictures into one PDF", "#a5560a", "#fbf1e6",
+             self.imagesToPdf),
         ]
         self.buttons: dict[str, QPushButton] = {}
         for i, (name, sub, colour, bg, signal) in enumerate(tiles):
@@ -63,7 +66,7 @@ class StartPage(QWidget):
         self.recent.itemActivated.connect(lambda it: self.openRecent.emit(it.data(Qt.ItemDataRole.UserRole)))
         self.recent.itemClicked.connect(lambda it: self.openRecent.emit(it.data(Qt.ItemDataRole.UserRole)))
         col.addWidget(self.recent)
-        hint = QLabel("<span style='color:gray'>Drag PDF or Word files onto this window to open them. "
+        hint = QLabel("<span style='color:gray'>Drag PDF or Word files onto this window to open them (or pictures to make a PDF). "
                       "Everything is processed on this computer - nothing is uploaded.</span>")
         hint.setWordWrap(True)
         col.addWidget(hint)
